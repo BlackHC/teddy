@@ -2,3 +2,6 @@
 teddy.code-workspace
 .vscode/launch.json
 __pycache__
+.pytest_cache
+.vscode
+.env

@@ -278,7 +278,59 @@ Flattening would mean turning actual structure into tuples.
 
 NOTE: we need to allow indexing of dicts and dataclasses and namedtuples!
 But then, how we disambiguate between an index and a key of type int?
-.astuple? or(tuple)? would be an option!
+.astuple? or(tuple)? would be an option instead!
+Ambiguity is horrible. `Literal()` solves part of the problem.
+Could use `Index()` to allow for indexing by number.
+
+(Shorts: 'idx()` and `'lit()`.)
+
+## 12/31
+
+### Optional and debugging/making sense of things:
+
+We can use schemas and schema validators to ensure that objects adhere to the assumed structure.
+
+Optional paths and path collapse is a good idea to allow for flexible parsing. However, it would be
+nice if there was a way to determine missing/failed paths, too.
+
+### POPO vs other impls
+
+If I offer more than one interface things will get very confusing. The semantics of the API should
+always be the same.
+
+Teddy should have one interface and POPO should be a backend.
+
+The structure already lends itself to that. The main class is just an abstraction layer.
+
+### Zip
+
+Zipping works on the index structure. When we zip in the path structure, we apply the same
+expression path P to each element with path Q. The specific instances be named P_i and Q_j.
+The final value has path Q_j P_i. We make this available as P_i Q_j.
+
+```
+y = x[:].zip()[:]
+y=['b']['a'] = x['a']['b']
+```
+
+```
+(people, employees).zip(_.id)
+```
+
+#### How could this be implemented?
+
+POPO could also be implemented using an index structure and then we just cycle/permute the indices.
+Alternatively, we could just construct a different view.
+
+A different way of implementing POPO would be to create a view with an expression tree that can be
+accessed at runtime. Difficult though if we wanted to support random access.
+
+#### Is there a path ambiguity?
+
+If we use `teddy(...).....zip()....` there is no way to stop the second path.
+
+Instead `.zip(_.subpath)` could be used. However, this means we lose understanding of the path.
+
 
 ---
 

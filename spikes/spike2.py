@@ -12,7 +12,7 @@ import operator
 import itertools
 import dataclasses
 
-with open('./data/swapi.json') as f:
+with open("./data/swapi.json") as f:
     swapi = json.load(f)
 
 
@@ -48,6 +48,7 @@ def teddy_attrgetter(item, key):
 
 class Teddy:
     """Interface with extension methods."""
+
     def __init__(self, data):
         self.data = list(data)
 
@@ -65,7 +66,7 @@ class Teddy:
         return self.apply(functools.partial(functools.reduce, f, initial=initial))
 
     def __repr__(self):
-        return f'teddy({self.data!r})'
+        return f"teddy({self.data!r})"
 
     def __getitem__(self, key):
         if key == slice(None, None, None):
@@ -103,14 +104,17 @@ class Teddy:
 def repr_teddy(value, ctx):
     return prettyprinter.pretty_call(ctx, type(value), value.data)
 
+
 prettyprinter.install_extras()
+
 
 def teddy(obj):
     return Teddy([obj])
 
+
 pprint1 = functools.partial(prettyprinter.pprint, depth=2)
 
-data = [[1,2], [3,4,5]]
+data = [[1, 2], [3, 4, 5]]
 
 data = teddy(data)
 
@@ -118,16 +122,16 @@ pprint1(data[0][1])
 
 swapi = teddy(swapi)
 
-#pprint1(swapi['people'][:]['name'], depth=3)
-#pprint1(swapi.people[:].name, max_seq_len=5)
+# pprint1(swapi['people'][:]['name'], depth=3)
+# pprint1(swapi.people[:].name, max_seq_len=5)
 pprint1(swapi.people[:].name.items, max_seq_len=10)
 pprint1(swapi.people.name.items, max_seq_len=10)
 
 
-#data = [dict(a = [dict(b=[dict(c=1) for _ in range(3)]) for _ in range(3)]) for _ in range(3)]
-#data = teddy(data)
+# data = [dict(a = [dict(b=[dict(c=1) for _ in range(3)]) for _ in range(3)]) for _ in range(3)]
+# data = teddy(data)
 
-#pprint1(data.a.b.c)
+# pprint1(data.a.b.c)
 
 
 """

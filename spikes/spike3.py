@@ -11,7 +11,7 @@ import itertools
 import dataclasses
 import typing
 
-with open('./data/swapi.json') as f:
+with open("./data/swapi.json") as f:
     swapi = json.load(f)
 
 
@@ -26,7 +26,7 @@ def teddy_item_map(f, item):
 
 
 def teddy_itemgetter(item, key):
-    #if item is None:
+    # if item is None:
     #    return None
     if isinstance(item, (list, tuple, dict)):
         return item[key]
@@ -61,12 +61,12 @@ class Teddy:
 
     def __getitem__(self, key):
         if key == slice(None, None, None):
-            return self._teddy(iterable=
-                lambda mapper: self.iterable(lambda item: list(map(mapper, item))))
+            return self._teddy(iterable=lambda mapper: self.iterable(lambda item: list(map(mapper, item))))
 
         if self.preserve_single_value:
-            return self._teddy(iterable=
-                lambda mapper: self.iterable(lambda item: {key: mapper(teddy_itemgetter(item, key=key))}))
+            return self._teddy(
+                iterable=lambda mapper: self.iterable(lambda item: {key: mapper(teddy_itemgetter(item, key=key))})
+            )
 
         return self.apply(functools.partial(teddy_itemgetter, key=key))
 
@@ -84,11 +84,11 @@ def teddy(data, preserve_single_value=True):
     return Teddy(iterable=lambda mapper: mapper(data), preserve_single_value=preserve_single_value)
 
 
-prettyprinter.install_extras(exclude=['django', 'ipython'])
+prettyprinter.install_extras(exclude=["django", "ipython"])
 
 pprint = functools.partial(prettyprinter.pprint, depth=3)
 
-data = [[1,2], [3,4,5]]
+data = [[1, 2], [3, 4, 5]]
 
 data = teddy(data, preserve_single_value=False)
 

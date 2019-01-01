@@ -35,7 +35,7 @@ import itertools
 import dataclasses
 import typing
 
-with open('./data/swapi.json') as f:
+with open("./data/swapi.json") as f:
     swapi = json.load(f)
 
 
@@ -53,7 +53,7 @@ def teddy_itemgetter_tuple_or_empty(item, key):
     if isinstance(item, dict):
         return (item[key],) if key in item else ()
     if isinstance(item, (list, tuple)):
-        return (item[key],) if -len(item)<=key<len(item) else ()
+        return (item[key],) if -len(item) <= key < len(item) else ()
     if dataclasses.is_dataclass(item):
         return (getattr(item, key),) if hasattr(item, key) else ()
     raise NotImplementedError(type(item))
@@ -62,8 +62,10 @@ def teddy_itemgetter_tuple_or_empty(item, key):
 def id_func(x):
     return x
 
+
 def nop_mapper(x):
     return (x,)
+
 
 @dataclasses.dataclass(frozen=True)
 class Teddy:
@@ -89,6 +91,7 @@ class Teddy:
 
     def __getitem__(self, key):
         if key == slice(None, None, None):
+
             def outer_all(mapper):
                 def inner(item):
                     result = tuple(map(mapper, item))
@@ -97,10 +100,13 @@ class Teddy:
                     if all(r for r in result):
                         return ([r[0] for r in result],)
                     return ({i: r[0] for i, r in enumerate(result) if r},)
+
                 return self.iterable(inner)
+
             return self._teddy(iterable=outer_all)
 
         if self.preserve_single_value:
+
             def outer_preserving(mapper):
                 def inner(item):
                     result = teddy_itemgetter_tuple_or_empty(item, key=key)
@@ -109,7 +115,9 @@ class Teddy:
                     if result:
                         return ({key: result[0]},)
                     return ()
+
                 return self.iterable(inner)
+
             return self._teddy(iterable=outer_preserving)
 
         def outer(mapper):
@@ -118,6 +126,7 @@ class Teddy:
                 if result:
                     result = mapper(result[0])
                 return result
+
             return self.iterable(inner)
 
         return self._teddy(iterable=outer)
@@ -137,11 +146,11 @@ def teddy(data, preserve_single_value=True):
     return Teddy(iterable=lambda mapper: mapper(data), preserve_single_value=preserve_single_value)
 
 
-prettyprinter.install_extras(exclude=['django', 'ipython'])
+prettyprinter.install_extras(exclude=["django", "ipython"])
 
 pprint = functools.partial(prettyprinter.pprint, depth=4)
 
-data = [[1,2], [3,4,5]]
+data = [[1, 2], [3, 4, 5]]
 
 data = teddy(data, preserve_single_value=False)
 

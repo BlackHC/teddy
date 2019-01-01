@@ -39,6 +39,7 @@ def schema_get(schema, key):
     # Unknown type :(
     return object
 
+
 def canonical_schema(schema):
     if schema in (int, bool, str, float, None):
         return schema
@@ -68,7 +69,7 @@ def canonical_schema(schema):
 
 
 class Schema:
-    __slots__ = ('wrapped_schema')
+    __slots__ = "wrapped_schema"
 
     def __init__(self, wrapped_schema):
         self.wrapped_schema = wrapped_schema
@@ -92,7 +93,7 @@ def schema(definition: object):
     return Schema(canonical_schema(definition))
 
 
-print(canonical_schema({'field1', 'field2'}))
+print(canonical_schema({"field1", "field2"}))
 
 schema1 = dict(params=typing.Dict[str, str], iterations=[dict(metrics=typing.Dict[str, float], choices=[int])])
 
@@ -104,7 +105,7 @@ pprint(canonical_schema(schema1))
 schema1 = Schema(schema1)
 pprint(schema1)
 pprint(schema1.params)
-pprint(schema1.iterations[0].metrics['loss'])
+pprint(schema1.iterations[0].metrics["loss"])
 
 
 @dataclasses.dataclass
@@ -114,7 +115,7 @@ class TestDC:
 
 
 pprint(canonical_schema(TestDC))
-pprint(schema(TestDC).b[0]['hello'])
+pprint(schema(TestDC).b[0]["hello"])
 
 
 def validate_schema(schema, data):

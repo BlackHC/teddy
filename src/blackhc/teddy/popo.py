@@ -1,272 +1,297 @@
 """POPO: Plain-old Python object
 
-Teddy interface for making life easier for POPOs.
+Implementation details for handling POPOs.
 """
-import json
-import prettyprinter
-import functools
-import operator
-import itertools
 import dataclasses
+import functools
 import typing
 
+from blackhc.teddy import transformers
+from blackhc.teddy import no_value
+from blackhc.teddy import interface
 
-@dataclasses.dataclass
-class _NoValue:
-    """A None that is not None.
 
-    To allow to differentiate between non-existing expression paths and the ones containing None.
-    """
-    __slots__= ()
+@dataclasses.dataclass(frozen=True)
+class FiniteGenerator:
+    __slots__ = ("generator", "is_sequence")
+    generator: typing.Callable[[], typing.Generator]
+    is_sequence: bool
+
+    @staticmethod
+    def wrap(obj: object):
+        kvs = lambda: transformers.to_kv(obj)
+        is_seq = isinstance(obj, (list, tuple))
+        return FiniteGenerator(kvs, is_seq)
+
+    def adapt(self, transformers: callable, seq_preserving=False):
+        return FiniteGenerator(lambda: transformers(self.generator()), self.is_sequence and seq_preserving)
+
+    def filter_keys(self, f):
+        return self.adapt(transformers.filter_keys(f), False)
+
+    def filter_values(self, f):
+        return self.adapt(transformers.filter_values(f), False)
+
+    def filter(self, f):
+        return self.adapt(transformers.filter(f), False)
+
+    def map_keys(self, f):
+        return self.adapt(transformers.map_keys(f), False)
+
+    def map_values(self, f):
+        return self.adapt(transformers.map_values(f), True)
+
+    def map(self, f):
+        return self.adapt(transformers.map(f), False)
 
     def __iter__(self):
-        return iter(())
+        return self.generator()
+
+    @property
+    def result(self):
+        return {key: value for key, value in iter(self)}
+
+    @property
+    def result_or_nv(self):
+        if self.is_sequence:
+            result = [value for _, value in iter(self)]
+            is_empty = True
+            is_full = True
+            for item in result:
+                if item is no_value:
+                    is_full = False
+                    if not is_empty:
+                        break
+
+                if item is not no_value:
+                    is_empty = False
+                    if not is_full:
+                        break
+
+            if is_empty:
+                return no_value
+            if is_full:
+                return result
+
+        return self.filter_values(no_value).result or no_value
 
 
-# no_value is the only instance of N
-no_value = _NoValue()
-
-all_keys = slice(None, None, None)
-
-
-@dataclasses.dataclass
-class Literal:
-    __slots__=('value',)
-    value: object
-
-
-def teddy_filter_key_value(f):
-    def map_key_item(item):
-        if isinstance(item, (list, tuple)):
-            return ((i, value) for i, value in enumerate(item) if f(value, i))
-        if isinstance(item, dict):
-            return ((key, value) for key, value in item.items() if f(value, key))
-        if dataclasses.is_dataclass(item):
-            results = ((field.name, getattr(item, field.name)) for field in dataclasses.fields(item))
-            results = ((key, value) for key, value in results if f(value, key))
-        raise NotImplementedError(type(item))
-    return map_key_item
-
-
-def teddy_filter_key(f):
-    def map_key_item(item):
-        if isinstance(item, (list, tuple)):
-            return ((i, value) for i, value in enumerate(item) if f(i))
-        if isinstance(item, dict):
-            return ((key, value) for key, value in item.items() if f(key))
-        if dataclasses.is_dataclass(item):
-            results = ((field.name, getattr(item, field.name)) for field in dataclasses.fields(item))
-            results = ((key, value) for key, value in results if f(key))
-        raise NotImplementedError(type(item))
-    return map_key_item
-
-
-def teddy_item_mapper(f):
-    def map_item(item):
-        if isinstance(item, (list, tuple, set)):
-            return map(f, item)
-        if isinstance(item, dict):
-            return map(f, item.values())
-        if dataclasses.is_dataclass(item):
-            return map(f, (getattr(item, field.name) for field in dataclasses.fields(item)))
-        raise NotImplementedError(type(item))
-    return map_item
-
-
-def teddy_item_getter(key):
-    def getkey(item):
+def key_getter(key):
+    def get_key(item):
         if isinstance(item, dict):
             return item[key] if key in item else no_value
         if isinstance(item, (list, tuple)):
-            return item[key] if -len(item)<=key<len(item) else no_value
+            return item[key] if -len(item) <= key < len(item) else no_value
         if dataclasses.is_dataclass(item):
             return getattr(item, key) if hasattr(item, key) else no_value
-        raise NotImplementedError(type(item))
-    return getkey
+        return no_value
+
+    return get_key
 
 
-def teddy_getitem_single(key, preserve_single_value):
-    if key == all_keys:
-        def outer_all(mapper):
-            def inner(item):
-                result = list(map(mapper, item))
-                if all(r is no_value for r in result):
-                    return no_value
-                if all(r is not no_value for r in result):
-                    return result
-                return {i: r for i, r in enumerate(result) if r is not no_value}
-            return inner
-        return outer_all
+def getitem(keys, preserve_single_index):
+    if keys == interface.all_keys:
+        return mapper_all
 
-    if callable(key):
-        # TODO: how do we check signatures?
-        argcount = key.__code__.co_argcount
-        if argcount == 1:
-            filter_item = teddy_filter_key(key)
-        elif argcount == 2:
-            filter_item = teddy_filter_key_value(key)
-        else:
-            raise NotImplementedError(f'{key} not supported for filtering (only 1 or 2 arguments)!')
+    if isinstance(keys, list):
+        return getitem_list(keys)
 
-        def outer_filter(mapper):
-            def inner(item):
-                filtered = filter_item(item)
-                results = ((key, mapper(value)) for key, value in filtered)
-                results = {key: value for key, value in results if value is not no_value}
-                return results if results else no_value
-            return inner
+    if isinstance(keys, tuple):
+        return getitem_tuple(keys)
 
-        return outer_filter
+    if isinstance(keys, dict):
+        return getitem_dict(keys)
 
-    if preserve_single_value:
-        sub_outer = teddy_getitem_single(key, preserve_single_value=False)
+    if dataclasses.is_dataclass(keys) and isinstance(keys, type):
+        return getitem_dataclass(keys)
 
-        def outer_preserve_single_value(mapper):
-            def inner(item):
-                result = sub_outer(mapper)(item)
-                if result is not no_value:
-                    return {key: result}
-                return result
-            return inner
+    if callable(keys):
+        return getitem_filter(keys)
 
-        return outer_preserve_single_value
+    if isinstance(keys, interface.Literal):
+        keys = keys.value
+
+    if preserve_single_index:
+        return getitem_atom_preserve_single_value(keys)
+
+    return getitem_atom(keys)
+
+
+def getitem_atom_preserve_single_value(key):
+    sub_outer = getitem_atom(key)
 
     def outer(mapper):
-        getitem = teddy_item_getter(key)
-
         def inner(item):
-            result = getitem(item)
-            if result is not no_value:
-                result = mapper(result)
+            result = sub_outer(mapper)(item)
+            if no_value(result):
+                return {key: result}
             return result
+
         return inner
 
     return outer
 
 
-def teddy_getitem(keys, preserve_single_value):
-    if isinstance(keys, list):
-        sub_outers = [teddy_getitem(key, preserve_single_value=False) for key in keys]
+def getitem_atom(key):
+    def outer(mapper):
+        getitem = key_getter(key)
 
-        def outer_list(mapper):
-            sub_mappers = [sub_outer(mapper) for sub_outer in sub_outers]
+        def inner(item):
+            result = getitem(item)
+            if no_value(result):
+                result = mapper(result)
+            return result
 
-            def inner(item):
-                results = (sub_mapper(item) for sub_mapper in sub_mappers)
-                results = [result for result in results if result is not no_value]
-                return results if results else no_value
-            return inner
+        return inner
 
-        return outer_list
-
-    if isinstance(keys, tuple):
-        sub_outers = [teddy_getitem(key, preserve_single_value=False) for key in keys]
-
-        def outer_tuple(mapper):
-            sub_mappers = [sub_outer(mapper) for sub_outer in sub_outers]
-
-            def inner(item):
-                results = (sub_mapper(item) for sub_mapper in sub_mappers)
-                results = tuple(result for result in results if result is not no_value)
-                return results if results else no_value
-            return inner
-
-        return outer_tuple
-
-    if isinstance(keys, set):
-        sub_outers = [(key, teddy_getitem(key, preserve_single_value=False)) for key in keys]
-
-        def outer_set(mapper):
-            sub_mappers = ((key, sub_outer(mapper)) for key, sub_outer in sub_outers)
-
-            def inner(item):
-                results = ((key, sub_mapper(item)) for key, sub_mapper in sub_mappers)
-                results = {key: result for key, result in results if result is not no_value}
-                return results if results else no_value
-            return inner
-
-        return outer_set
-
-    if isinstance(keys, dict):
-        sub_outers = [(name, teddy_getitem(key, preserve_single_value=False)) for name, key in keys.items()]
-
-        def outer_dict(mapper):
-            sub_mappers = ((key, sub_outer(mapper)) for key, sub_outer in sub_outers)
-
-            def inner(item):
-                results = ((key, sub_mapper(item)) for key, sub_mapper in sub_mappers)
-                results = {key: result for key, result in results if result is not no_value}
-                return results if results else no_value
-            return inner
-
-        return outer_dict
-
-    if isinstance(keys, Literal):
-        keys = keys.value
-
-    return teddy_getitem_single(keys, preserve_single_value=preserve_single_value)
+    return outer
 
 
-def id_func(x):
-    return x
+def mapper_all(mapper):
+    def inner(item):
+        return FiniteGenerator.wrap(item).map_values(mapper).result_or_nv
+
+    return inner
 
 
-@dataclasses.dataclass(frozen=True)
-class Teddy:
-    # Iterable takes a callable that maps the value to a 1-tuple or empty tuple.
-    # The callable takes a value (not a 1-tuple or empty one).
-    iterable: typing.Callable
-    preserve_single_value: bool
-
-    def _teddy(self, **updates):
-        return dataclasses.replace(self, **updates)
-
-    def __iter__(self):
-        return iter(self.iterable(id_func))
-
-    def _chain(self, outer):
-        return self._teddy(iterable=lambda mapper: self.iterable(outer(mapper)))
-
-    def apply(self, f):
-        def outer(mapper):
-            def inner(item):
-                return mapper(f(item))
-            return inner
-
-        return self._chain(outer)
-
-    def __call__(self, f):
-        return self.apply(f)
-
-    def map(self, f):
-        return self.apply(teddy_item_mapper(f))
-
-    def __getitem__(self, key):
-        return self._chain(teddy_getitem(key, preserve_single_value=self.preserve_single_value))
-
-    @property
-    def result(self):
-        r = self.iterable(id_func)
-        return r
+def getargcount(f):
+    # TODO: how do we check signatures in general?
+    return f.__code__.co_argcount
 
 
-@prettyprinter.register_pretty(Teddy)
-def repr_teddy(value, ctx):
-    return prettyprinter.pretty_call(ctx, type(value), value.iterable(id_func))
+def getitem_filter(f):
+    argcount = getargcount(f)
+    if argcount == 1:
+        filter_item = transformers.filter_keys(f)
+    elif argcount == 2:
+        filter_item = transformers.filter(f)
+    else:
+        raise NotImplementedError(f"{f} not supported for filtering (only 1 or 2 arguments)!")
+
+    def outer(mapper):
+        def inner(item):
+            return FiniteGenerator.wrap(item).adapt(filter_item).map_values(mapper).result_or_nv
+
+        return inner
+
+    return outer
 
 
-def teddy(data, preserve_single_value=True):
-    return Teddy(iterable=lambda mapper: mapper(data), preserve_single_value=preserve_single_value)
+def getitem_dataclass(keys):
+    sub_outers = [(field.name, getitem_atom(field.name)) for field in dataclasses.fields(keys)]
+
+    def outer(mapper):
+        sub_mappers = [(key, sub_outer(mapper)) for key, sub_outer in sub_outers]
+
+        def inner(item):
+            results = ((key, sub_mapper(item)) for key, sub_mapper in sub_mappers)
+            results = keys(**{key: value for key, value in results if value is not no_value})
+            return results
+
+        return inner
+
+    return outer
 
 
-prettyprinter.install_extras(exclude=['django', 'ipython'])
+def getitem_dict(keys):
+    sub_outers = [(name, getitem(key, preserve_single_index=False)) for name, key in keys.items()]
 
-pprint = functools.partial(prettyprinter.pprint, depth=4)
+    def outer(mapper):
+        sub_mappers = [(key, sub_outer(mapper)) for key, sub_outer in sub_outers]
 
-data = [[1,2], [3,4,5]]
+        def inner(item):
+            results = ((key, sub_mapper(item)) for key, sub_mapper in sub_mappers)
+            results = {key: result for key, result in results if result is not no_value}
+            return results if results else no_value
 
-data = teddy(data, preserve_single_value=False)
+        return inner
 
-pprint(data[:][lambda idx: idx % 2 ==0])
-pprint(data[0])
-pprint(data[0][1])
+    return outer
+
+
+def getitem_tuple(keys):
+    sub_outers = [(key, getitem(key, preserve_single_index=False)) for key in keys]
+
+    def outer(mapper):
+        sub_mappers = [(key, sub_outer(mapper)) for key, sub_outer in sub_outers]
+
+        def inner(item):
+            results = ((key, sub_mapper(item)) for key, sub_mapper in sub_mappers)
+            results = {key: result for key, result in results if result is not no_value}
+            return results if results else no_value
+
+        return inner
+
+    return outer
+
+
+def getitem_list(keys):
+    sub_outers = [getitem(key, preserve_single_index=False) for key in keys]
+
+    def outer(mapper):
+        sub_mappers = [sub_outer(mapper) for sub_outer in sub_outers]
+
+        def inner(item):
+            results = (sub_mapper(item) for sub_mapper in sub_mappers)
+            results = [result for result in results if result is not no_value]
+            return results if results else no_value
+
+        return inner
+
+    return outer
+
+
+def apply(f, args=None, kwargs=None):
+    args = args or []
+    kwargs = kwargs or {}
+    f_partial = functools.partial(f, *args, **kwargs)
+
+    def outer(mapper):
+        def inner(item):
+            return mapper(f_partial(item))
+
+        return inner
+
+    return outer
+
+
+def call(args=None, kwargs=None):
+    args = args or []
+    kwargs = kwargs or {}
+
+    def outer(mapper):
+        def inner(item):
+            return mapper(item(*args, **kwargs))
+
+        return inner
+
+    return outer
+
+
+def map_values_or_kv(f):
+    # TODO: how do we check signatures in general?
+    argcount = getargcount(f)
+    if argcount == 1:
+        map_item, preserve_sequence = transformers.map_values(f), True
+    elif argcount == 2:
+        map_item, preserve_sequence = transformers.map(f), False
+    else:
+        raise NotImplementedError(f"{f} not supported for filtering (only 1 or 2 arguments)!")
+
+    def outer(mapper):
+        def inner(item):
+            return FiniteGenerator.wrap(item).adapt(map_item, preserve_sequence).map_values(mapper).result_or_nv
+
+        return inner
+
+    return outer
+
+
+def map_keys(f):
+    def outer(mapper):
+        def inner(item):
+            return FiniteGenerator.wrap(item).map_keys(f).map_values(mapper).result_or_nv
+
+        return inner
+
+    return outer

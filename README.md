@@ -18,4 +18,9 @@ data = list()
 
 ### TODOs
 
+* [ ] we need a sequential type that exposes a dict interface but stores a list internally...
+* [ ] figure out a structure for POPO vs other possible impls
+* [ ] add tests
+* [ ] figure out a name for different kinds of predicates
+* [ ] add support for implicit lambdas
 * [ ] support for a literal function that allows for accessing any constant in a dict that has special meaning for teddy.

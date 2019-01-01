@@ -29,4 +29,4 @@ composed_func=composed_func_builder()
     """
     namespace = {}
     exec(code, dict(funcs=funcs, __builtins__={}), namespace)
-    return namespace['composed_func']
+    return namespace["composed_func"]

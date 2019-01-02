@@ -32,7 +32,7 @@ class Teddy:
         return self._teddy(iterable=lambda mapper: self.iterable(outer(mapper)))
 
     def apply(self, f=None, *, args=None, kwargs=None):
-        if f:
+        if f is not None:
             return self._chain(popo.apply(f, args, kwargs))
         return self._chain(popo.call(args, kwargs))
 

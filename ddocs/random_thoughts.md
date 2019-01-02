@@ -331,7 +331,24 @@ If we use `teddy(...).....zip()....` there is no way to stop the second path.
 
 Instead `.zip(_.subpath)` could be used. However, this means we lose understanding of the path.
 
+## 1/1
 
----
+### Generated types.
 
-Let's assume `swapi` contains all the data from the Star Wars APIs inside one big dict or DataClass.
+Index types mirror generated types.
+
+The main issue is that:
+* if we iterate over a list, we receive values.
+* if we iterate over a dict, we receive keys.
+
+We could always return a sequence of pairs or implement a custom dictionary that iterates over its values.
+
+## 1/2
+
+### Re: generated types
+
+The biggest issue with a custom dict type is that we have a switch of semantics if the values we receive are not primitive or dicts themselves.
+
+Alternatively, we could always return a list of pairs. (Ie as if we always implicitly called items().)
+
+The issue with that is that it doesn't allow for key lookups. Maybe not something we actually need usually though.

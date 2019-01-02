@@ -5,74 +5,56 @@ Implementation details for handling POPOs.
 import dataclasses
 import functools
 import typing
+import inspect
 
 from blackhc.teddy import transformers
 from blackhc.teddy import no_value
 from blackhc.teddy import interface
+from blackhc.teddy import mapped_sequence
+
+from blackhc.implicit_lambda import to_lambda, is_lambda_dsl
 
 
 @dataclasses.dataclass(frozen=True)
 class FiniteGenerator:
-    __slots__ = ("generator", "is_sequence")
+    __slots__ = "generator"
     generator: typing.Callable[[], typing.Generator]
-    is_sequence: bool
 
     @staticmethod
     def wrap(obj: object):
         kvs = lambda: transformers.to_kv(obj)
-        is_seq = isinstance(obj, (list, tuple))
-        return FiniteGenerator(kvs, is_seq)
+        return FiniteGenerator(kvs)
 
-    def adapt(self, transformers: callable, seq_preserving=False):
-        return FiniteGenerator(lambda: transformers(self.generator()), self.is_sequence and seq_preserving)
+    def adapt(self, transformers: callable):
+        return FiniteGenerator(lambda: transformers(self.generator()))
 
     def filter_keys(self, f):
-        return self.adapt(transformers.filter_keys(f), False)
+        return self.adapt(transformers.filter_keys(f))
 
     def filter_values(self, f):
-        return self.adapt(transformers.filter_values(f), False)
+        return self.adapt(transformers.filter_values(f))
 
     def filter(self, f):
-        return self.adapt(transformers.filter(f), False)
+        return self.adapt(transformers.filter(f))
 
     def map_keys(self, f):
-        return self.adapt(transformers.map_keys(f), False)
+        return self.adapt(transformers.map_keys(f))
 
     def map_values(self, f):
-        return self.adapt(transformers.map_values(f), True)
+        return self.adapt(transformers.map_values(f))
 
     def map(self, f):
-        return self.adapt(transformers.map(f), False)
+        return self.adapt(transformers.map(f))
 
     def __iter__(self):
         return self.generator()
 
     @property
     def result(self):
-        return {key: value for key, value in iter(self)}
+        return mapped_sequence.MappedSequence.from_pairs(iter(self))
 
     @property
     def result_or_nv(self):
-        if self.is_sequence:
-            result = [value for _, value in iter(self)]
-            is_empty = True
-            is_full = True
-            for item in result:
-                if item is no_value:
-                    is_full = False
-                    if not is_empty:
-                        break
-
-                if item is not no_value:
-                    is_empty = False
-                    if not is_full:
-                        break
-
-            if is_empty:
-                return no_value
-            if is_full:
-                return result
-
         return self.filter_values(no_value).result or no_value
 
 
@@ -90,6 +72,10 @@ def key_getter(key):
 
 
 def getitem(keys, preserve_single_index):
+    # TODO: move the to_lambda calls into dsl!
+    if is_lambda_dsl(keys):
+        return getitem_filter(keys)
+
     if keys == interface.all_keys:
         return mapper_all
 
@@ -124,7 +110,7 @@ def getitem_atom_preserve_single_value(key):
         def inner(item):
             result = sub_outer(mapper)(item)
             if no_value(result):
-                return {key: result}
+                return mapped_sequence.MappedSequence.from_pairs(((key, result),))
             return result
 
         return inner
@@ -155,11 +141,15 @@ def mapper_all(mapper):
 
 
 def getargcount(f):
+    if hasattr(f, "args"):
+        return len(f.args)
     # TODO: how do we check signatures in general?
-    return f.__code__.co_argcount
+    sig = inspect.signature(f)
+    return sum(1 for p in sig.parameters.values() if p.kind != p.KEYWORD_ONLY)
 
 
 def getitem_filter(f):
+    f = to_lambda(f, 1, ordering=interface.arg_ordering)
     argcount = getargcount(f)
     if argcount == 1:
         filter_item = transformers.filter_keys(f)
@@ -201,8 +191,7 @@ def getitem_dict(keys):
 
         def inner(item):
             results = ((key, sub_mapper(item)) for key, sub_mapper in sub_mappers)
-            results = {key: result for key, result in results if result is not no_value}
-            return results if results else no_value
+            return FiniteGenerator(lambda: results).result_or_nv
 
         return inner
 
@@ -210,6 +199,7 @@ def getitem_dict(keys):
 
 
 def getitem_tuple(keys):
+    # TODO: guess names for keys
     sub_outers = [(key, getitem(key, preserve_single_index=False)) for key in keys]
 
     def outer(mapper):
@@ -217,8 +207,7 @@ def getitem_tuple(keys):
 
         def inner(item):
             results = ((key, sub_mapper(item)) for key, sub_mapper in sub_mappers)
-            results = {key: result for key, result in results if result is not no_value}
-            return results if results else no_value
+            return FiniteGenerator(lambda: results).result_or_nv
 
         return inner
 
@@ -242,6 +231,8 @@ def getitem_list(keys):
 
 
 def apply(f, args=None, kwargs=None):
+    f = to_lambda(f, required_args=1)
+
     args = args or []
     kwargs = kwargs or {}
     f_partial = functools.partial(f, *args, **kwargs)
@@ -269,18 +260,20 @@ def call(args=None, kwargs=None):
 
 
 def map_values_or_kv(f):
+    f = to_lambda(f, 1, ordering=interface.arg_ordering)
+
     # TODO: how do we check signatures in general?
     argcount = getargcount(f)
     if argcount == 1:
-        map_item, preserve_sequence = transformers.map_values(f), True
+        map_item = transformers.map_values(f)
     elif argcount == 2:
-        map_item, preserve_sequence = transformers.map(f), False
+        map_item = transformers.map(f)
     else:
         raise NotImplementedError(f"{f} not supported for filtering (only 1 or 2 arguments)!")
 
     def outer(mapper):
         def inner(item):
-            return FiniteGenerator.wrap(item).adapt(map_item, preserve_sequence).map_values(mapper).result_or_nv
+            return FiniteGenerator.wrap(item).adapt(map_item).map_values(mapper).result_or_nv
 
         return inner
 
@@ -288,6 +281,8 @@ def map_values_or_kv(f):
 
 
 def map_keys(f):
+    f = to_lambda(f, 1)
+
     def outer(mapper):
         def inner(item):
             return FiniteGenerator.wrap(item).map_keys(f).map_values(mapper).result_or_nv

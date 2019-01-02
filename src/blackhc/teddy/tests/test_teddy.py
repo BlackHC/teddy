@@ -1,7 +1,7 @@
 import dataclasses
 import pytest
 
-from blackhc.teddy import teddy, lit
+from blackhc.teddy import teddy, lit, _key, _value
 
 
 simple_list = [1, 2, 3, 4]
@@ -104,3 +104,37 @@ def test_double_list():
     # NOTE: teddy is broken as long as we can't know sure whether we get a list or dict type!
     assert teddy(double_list)[:][0].result == [1, 3]
     assert teddy(double_list)[:][2].result == {1: 5}
+
+
+def test_getitem_filter():
+    assert teddy(simple_list)[_key == 2].result == {2: 3}
+
+
+def test_apply():
+    assert teddy(simple_list)[_key == 2].apply(_value + 1).result == {2: 4}
+
+
+def test_getitem_filter_kv():
+    assert teddy(simple_list)[_key * _value == 0].result == {0: 1}
+
+
+def test_getitem_map_v():
+    assert teddy(simple_list).map(_value + 1).result == [2, 3, 4, 5]
+
+
+def test_getitem_map_kv():
+    from blackhc.implicit_lambda.builtins import str
+
+    assert teddy(simple_list).map((str._(_key), _value - 1)).result == {"0": 0, "1": 1, "2": 2, "3": 3}
+
+
+def test_getitem_map_k():
+    from blackhc.implicit_lambda.builtins import str
+
+    assert teddy(simple_list).map_keys(str._(_key)).result == {"0": 1, "1": 2, "2": 3, "3": 4}
+
+
+def test_iter():
+    result = teddy(double_list)[:][:].result
+    iterated = [[x for x in i] for i in result]
+    assert result == iterated

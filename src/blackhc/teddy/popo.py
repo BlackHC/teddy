@@ -17,16 +17,15 @@ from blackhc.implicit_lambda import to_lambda, is_lambda_dsl
 
 @dataclasses.dataclass(frozen=True)
 class FiniteGenerator:
-    __slots__ = "generator"
-    generator: typing.Callable[[], typing.Generator]
+    __slots__ = "generator_lambda"
+    generator_lambda: typing.Callable[[], typing.Generator]
 
     @staticmethod
     def wrap(obj: object):
-        kvs = lambda: transformers.to_kv(obj)
-        return FiniteGenerator(kvs)
+        return FiniteGenerator(lambda: transformers.to_kv(obj))
 
     def adapt(self, transformers: callable):
-        return FiniteGenerator(lambda: transformers(self.generator()))
+        return FiniteGenerator(lambda: transformers(self.generator_lambda()))
 
     def filter_keys(self, f):
         return self.adapt(transformers.filter_keys(f))
@@ -46,12 +45,15 @@ class FiniteGenerator:
     def map(self, f):
         return self.adapt(transformers.map(f))
 
+    def call_values(self, *args):
+        return self.adapt(transformers.call_values(*args))
+
     def __iter__(self):
-        return self.generator()
+        return self.generator_lambda()
 
     @property
     def result(self):
-        return mapped_sequence.MappedSequence.from_pairs(iter(self))
+        return mapped_sequence.MappedSequence(iter(self))
 
     @property
     def result_or_nv(self):
@@ -83,7 +85,8 @@ def getitem(keys, preserve_single_index):
         return getitem_list(keys)
 
     if isinstance(keys, tuple):
-        return getitem_tuple(keys)
+        # TODO: guess proper names from keys
+        return getitem_dict({key: key for key in keys})
 
     if isinstance(keys, dict):
         return getitem_dict(keys)
@@ -110,7 +113,7 @@ def getitem_atom_preserve_single_value(key):
         def inner(item):
             result = sub_outer(mapper)(item)
             if no_value(result):
-                return mapped_sequence.MappedSequence.from_pairs(((key, result),))
+                return mapped_sequence.MappedSequence({key: result})
             return result
 
         return inner
@@ -174,9 +177,8 @@ def getitem_dataclass(keys):
         sub_mappers = [(key, sub_outer(mapper)) for key, sub_outer in sub_outers]
 
         def inner(item):
-            results = ((key, sub_mapper(item)) for key, sub_mapper in sub_mappers)
-            results = keys(**{key: value for key, value in results if value is not no_value})
-            return results
+            # TODO: We should convert no_value to None here?
+            return keys(**FiniteGenerator(lambda: sub_mappers).call_values(item).filter_values(no_value).result)
 
         return inner
 
@@ -190,24 +192,7 @@ def getitem_dict(keys):
         sub_mappers = [(key, sub_outer(mapper)) for key, sub_outer in sub_outers]
 
         def inner(item):
-            results = ((key, sub_mapper(item)) for key, sub_mapper in sub_mappers)
-            return FiniteGenerator(lambda: results).result_or_nv
-
-        return inner
-
-    return outer
-
-
-def getitem_tuple(keys):
-    # TODO: guess names for keys
-    sub_outers = [(key, getitem(key, preserve_single_index=False)) for key in keys]
-
-    def outer(mapper):
-        sub_mappers = [(key, sub_outer(mapper)) for key, sub_outer in sub_outers]
-
-        def inner(item):
-            results = ((key, sub_mapper(item)) for key, sub_mapper in sub_mappers)
-            return FiniteGenerator(lambda: results).result_or_nv
+            return FiniteGenerator(lambda: sub_mappers).call_values(item).result_or_nv
 
         return inner
 
@@ -221,9 +206,8 @@ def getitem_list(keys):
         sub_mappers = [sub_outer(mapper) for sub_outer in sub_outers]
 
         def inner(item):
-            results = (sub_mapper(item) for sub_mapper in sub_mappers)
-            results = [result for result in results if result is not no_value]
-            return results if results else no_value
+            results = FiniteGenerator(lambda: sub_mappers).call_values(item).result
+            return results.values() if results else no_value
 
         return inner
 

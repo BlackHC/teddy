@@ -2,7 +2,7 @@ from blackhc.teddy.mapped_sequence import MappedSequence, idx
 
 
 def test_mapped_sequence():
-    a = MappedSequence.from_pairs(((1, 2), (3, 4), (5, 6)))
+    a = MappedSequence(((1, 2), (3, 4), (5, 6)))
 
     assert list(a) == [2, 4, 6]
     assert a[3] == 4
@@ -14,19 +14,32 @@ def test_mapped_sequence():
 
 
 def test_mapped_sequence_bool():
-    assert not MappedSequence.from_pairs(())
-    assert MappedSequence.from_pairs(((1, 1),))
+    assert not MappedSequence(())
+    assert MappedSequence(((1, 1),))
 
 
 def test_mapped_sequence_fancy_eq():
-    assert MappedSequence.from_pairs(((1, 2), (3, 4))) == {1: 2, 3: 4}
-    assert MappedSequence.from_pairs(((1, 2), (3, 4))) != {3: 4, 1: 2}
-    assert MappedSequence.from_pairs(((1, 2), (3, 4))) == [2, 4]
-    assert MappedSequence.from_pairs(((1, 2), (3, 4))) != [3, 4]
+    assert MappedSequence(((1, 2), (3, 4))) == {1: 2, 3: 4}
+    assert MappedSequence(((1, 2), (3, 4))) != {3: 4, 1: 2}
+    assert MappedSequence(((1, 2), (3, 4))) == [2, 4]
+    assert MappedSequence(((1, 2), (3, 4))) != [3, 4]
 
 
 def test_mapped_sequence_fancy_eq_swapped():
-    assert {1: 2, 3: 4} == MappedSequence.from_pairs(((1, 2), (3, 4)))
-    assert {3: 4, 1: 2} != MappedSequence.from_pairs(((1, 2), (3, 4)))
-    assert [2, 4] == MappedSequence.from_pairs(((1, 2), (3, 4)))
-    assert [3, 4] != MappedSequence.from_pairs(((1, 2), (3, 4)))
+    assert {1: 2, 3: 4} == MappedSequence(((1, 2), (3, 4)))
+    assert {3: 4, 1: 2} != MappedSequence(((1, 2), (3, 4)))
+    assert [2, 4] == MappedSequence(((1, 2), (3, 4)))
+    assert [3, 4] != MappedSequence(((1, 2), (3, 4)))
+
+
+def test_asterisk_conversions():
+    ms = MappedSequence(((1, 2), (3, 4)))
+    assert {**ms} == {3: 4, 1: 2}
+    assert [*ms] == [2, 4]
+
+
+def test_hash():
+    ms = MappedSequence(((1, 2), (3, 4)))
+    hash(ms)
+
+    assert {ms: ms}[ms] == ms

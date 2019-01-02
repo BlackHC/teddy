@@ -1,6 +1,7 @@
 import pytest
 import dataclasses
 from blackhc.teddy import transformers
+from blackhc.teddy import mapped_sequence
 
 
 def test_dataclass_to_kv():
@@ -76,6 +77,9 @@ def test_to_kv():
 
     assert tuple(transformers.to_kv(DC2(1, 2))) == (("a", 1), ("b", 2))
 
+    ms = mapped_sequence.MappedSequence({1: 2, 2: 3})
+    assert tuple(transformers.to_kv(ms)) == ((1, 2), (2, 3))
+
 
 def test_filter_keys():
     assert tuple(transformers.filter_keys(lambda key: True)(transformers.to_kv(tuple(range(3))))) == tuple(
@@ -115,3 +119,7 @@ def test_map_values():
 
 def test_map():
     assert tuple(transformers.map(lambda key, value: (key + 1, value + 2))(((0, 1), (2, 3)))) == ((1, 3), (3, 5))
+
+
+def test_call_values():
+    assert tuple(transformers.call_values(1)(((0, lambda x: x + 1), (1, lambda x: x + 2)))) == ((0, 2), (1, 3))

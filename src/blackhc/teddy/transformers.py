@@ -1,5 +1,7 @@
 import dataclasses
 
+from blackhc.teddy.mapped_sequence import MappedSequence
+
 
 def dataclass_to_kv(obj):
     return ((field.name, getattr(obj, field.name)) for field in dataclasses.fields(obj))
@@ -22,6 +24,8 @@ def to_kv(obj: object):
         return ((i, value) for i, value in enumerate(obj))
     if isinstance(obj, dict):
         return ((key, value) for key, value in obj.items())
+    if isinstance(obj, MappedSequence):
+        return obj.items()
     if dataclasses.is_dataclass(obj):
         return ((key, value) for key, value in dataclass_to_kv(obj))
     raise NotImplementedError(type(obj))
@@ -49,3 +53,7 @@ def map_values(f):
 
 def map(f):
     return lambda generator: (f(key, value) for key, value in generator)
+
+
+def call_values(*args):
+    return lambda generator: ((key, value(*args)) for key, value in generator)

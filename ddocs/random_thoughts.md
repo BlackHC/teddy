@@ -352,3 +352,7 @@ The biggest issue with a custom dict type is that we have a switch of semantics 
 Alternatively, we could always return a list of pairs. (Ie as if we always implicitly called items().)
 
 The issue with that is that it doesn't allow for key lookups. Maybe not something we actually need usually though.
+
+MappedSequence even supports * and ** correctly withich is amazing.
+
+I wonder whether I should look into turning it into a standalone package. It might need extra functionality.

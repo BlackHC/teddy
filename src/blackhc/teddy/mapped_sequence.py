@@ -10,6 +10,7 @@ dict_keys = type({}.keys())
 dict_values = type({}.values())
 dict_items = type({}.items())
 
+
 @dataclasses.dataclass(frozen=True)
 class Index:
     __slots__ = "index"
@@ -21,22 +22,23 @@ def idx(row):
 
 
 class MappedSequence(abc.Collection):
-    __slots__ = ("_data", "_keys", "_values")
-    _data: dict
+    __slots__ = ("_mapping", "_keys", "_values")
+    _mapping: dict
     _keys: tuple
     _values: tuple
 
-    def __init__(self, data, keys, values):
-        self._data = data
-        self._keys = keys
-        self._values = values
+    def __init__(self, mapping, *, keys=None, values=None):
+        if not isinstance(mapping, dict):
+            mapping = dict(mapping)
+        self._mapping = mapping
 
-    @staticmethod
-    def from_pairs(pairs: tuple):
-        data = dict(pairs)
-        keys = tuple(data.keys())
-        values = tuple(data.values())
-        return MappedSequence(data, keys, values)
+        if keys is None:
+            keys = mapping.keys()
+        if values is None:
+            values = mapping.values()
+
+        self._keys = tuple(keys)
+        self._values = tuple(values)
 
     def __iter__(self):
         return iter(self._values)
@@ -49,7 +51,7 @@ class MappedSequence(abc.Collection):
             return self._values[key.index]
         if isinstance(key, Literal):
             key = key.value
-        return self._data[key]
+        return self._mapping[key]
 
     def keys(self):
         return KeysView(self)
@@ -61,7 +63,7 @@ class MappedSequence(abc.Collection):
         return value in self._values
 
     def __reversed__(self):
-        return MappedSequence(self._data, tuple(reversed(self._keys)), tuple(reversed(self._values)))
+        return MappedSequence(self._mapping, keys=tuple(reversed(self._keys)), values=tuple(reversed(self._values)))
 
     def items(self):
         return ItemsView(self)
@@ -85,14 +87,14 @@ class MappedSequence(abc.Collection):
         return super().__eq__(other)
 
     def __hash__(self):
-        return hash(self._pairs)
+        return hash((self._keys, self._values))
 
     def __repr__(self):
         return f"{type(self).__name__}({tuple(self.items())})"
 
 
 class MappingView(abc.Sized):
-    __slots__ = '_mapping',
+    __slots__ = ("_mapping",)
 
     def __init__(self, mapping):
         self._mapping = mapping
@@ -101,8 +103,7 @@ class MappingView(abc.Sized):
         return len(self._mapping)
 
     def __repr__(self):
-        return '{0.__class__.__qualname__}({0._mapping!r})'.format(self)
-
+        return "{0.__class__.__qualname__}({0._mapping!r})".format(self)
 
 
 class KeysView(MappingView, abc.Set):

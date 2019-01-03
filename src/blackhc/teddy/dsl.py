@@ -23,7 +23,7 @@ class Teddy:
         try:
             return self.iterable(id_func)
         except Exception:
-            raise RuntimeError('Result computation error')
+            raise RuntimeError("Result computation error")
 
     def _teddy(self, **updates):
         return dataclasses.replace(self, **updates)
@@ -61,7 +61,7 @@ class Teddy:
         return self._chain(popo.getitem(key, preserve_single_index=self.preserve_single_index))
 
     __repr__ = prettyprinter.pretty_repr
-    #def __repr__(self):
+    # def __repr__(self):
     #    return f"{type(self)}({self.result})"
 
 

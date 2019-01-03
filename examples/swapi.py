@@ -17,10 +17,10 @@ pprint = functools.partial(prettyprinter.pprint, max_seq_len=20)
 
 pprint(sorted(swapi.people[:].name), max_seq_len=100, depth=4)
 
-skywalker_films_urls = swapi.people.map_keys(_value['name'])[contains(_, 'Skywalker')].films
+skywalker_films_urls = swapi.people.map_keys(_value["name"])[contains(_, "Skywalker")].films
 pprint(skywalker_films_urls.result)
 
-skywalker_films = swapi.films.map_keys(_value['url'])[skywalker_films_urls.result]
+skywalker_films = swapi.films.map_keys(_value["url"])[skywalker_films_urls.result]
 pprint(skywalker_films.title.result)
 
 # pprint(swapi, depth=1)

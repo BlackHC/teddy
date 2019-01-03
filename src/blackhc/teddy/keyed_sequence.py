@@ -98,12 +98,13 @@ class KeyedSequence(abc.Collection):
         return hash((self._keys, self._values))
 
     __repr__ = prettyprinter.pretty_repr
-    #def __repr__(self):
+    # def __repr__(self):
     #    return f"{type(self)}{tuple(self._mapping.items())}"
+
 
 @prettyprinter.register_pretty(KeyedSequence)
 def repr_teddy(value, ctx):
-    return prettyprinter.pretty_call(ctx, 'KeyedSequence', *value._mapping.items())
+    return prettyprinter.pretty_call(ctx, "KeyedSequence", *value._mapping.items())
 
 
 class MappingView(abc.Sized):

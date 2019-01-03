@@ -8,7 +8,6 @@ import typing
 import inspect
 
 from blackhc.teddy import transformers
-from blackhc.teddy import no_value
 from blackhc.teddy import interface
 from blackhc.teddy import keyed_sequence
 
@@ -52,6 +51,9 @@ class FiniteGenerator:
     def call_values(self, *args):
         return self.adapt(transformers.call_values(*args))
 
+    def drop_nones(self):
+        return self.adapt(transformers.drop_nones)
+
     def __iter__(self):
         return self.generator_lambda()
 
@@ -60,22 +62,22 @@ class FiniteGenerator:
         return keyed_sequence.KeyedSequence(iter(self))
 
     @property
-    def result_or_nv(self):
-        return self.filter_values(no_value).result or no_value
+    def result_or_none(self):
+        return self.drop_nones().result or None
 
 
 def key_getter(key):
     def get_key(item):
         if isinstance(item, dict):
-            return item[key] if key in item else no_value
+            return item[key] if key in item else None
         if isinstance(item, (list, tuple)):
-            return item[key] if -len(item) <= key < len(item) else no_value
+            return item[key] if -len(item) <= key < len(item) else None
         if dataclasses.is_dataclass(item):
-            return getattr(item, key) if hasattr(item, key) else no_value
+            return getattr(item, key) if hasattr(item, key) else None
         if isinstance(item, keyed_sequence.KeyedSequence):
-            # NOTE: KeyedSequence is a Sequence so we need to check the keys.
-            return item[key] if key in item.keys() else no_value
-        return no_value
+            # NOTE: KeyedSequence is like a Sequence so we need to check the keys.
+            return item[key] if key in item.keys() else None
+        return None
 
     return get_key
 
@@ -122,12 +124,12 @@ def getitem_atom_preserve_single_value(key):
     def outer(mapper):
         def inner(item):
             result = sub_outer(mapper)(item)
-            if no_value(result):
+            if result is not None:
                 return keyed_sequence.KeyedSequence({key: result})
             return result
 
         if __debug__:
-            inner.mapper_type = ('getitem_atom_preserve_single_value', getitem_atom_preserve_single_value)
+            inner.mapper_type = ("getitem_atom_preserve_single_value", getitem_atom_preserve_single_value)
             inner.mapper_args = key
         return inner
 
@@ -140,12 +142,12 @@ def getitem_atom(key):
 
         def inner(item):
             result = getitem(item)
-            if no_value(result):
+            if result is not None:
                 result = mapper(result)
             return result
 
         if __debug__:
-            inner.mapper_type = ('getitem_atom', getitem_atom)
+            inner.mapper_type = ("getitem_atom", getitem_atom)
             inner.mapper_args = key
         return inner
 
@@ -154,10 +156,10 @@ def getitem_atom(key):
 
 def mapper_all(mapper):
     def inner(item):
-        return FiniteGenerator.wrap(item).map_values(mapper).result_or_nv
+        return FiniteGenerator.wrap(item).map_values(mapper).result_or_none
 
     if __debug__:
-        inner.mapper_type = ('mapper_all', mapper_all)
+        inner.mapper_type = ("mapper_all", mapper_all)
     return inner
 
 
@@ -170,7 +172,12 @@ def getargcount(f):
 
 
 def getitem_filter(f):
-    f = to_lambda(f, args_resolver=args_resolver.from_allowed_signatures(('_',), ('key',), ('_', 'value'), ('key', 'value'), ('key', '_')))
+    f = to_lambda(
+        f,
+        args_resolver=args_resolver.from_allowed_signatures(
+            ("_",), ("key",), ("_", "value"), ("key", "value"), ("key", "_")
+        ),
+    )
     argcount = getargcount(f)
     if argcount == 1:
         filter_item = transformers.filter_keys(f)
@@ -181,12 +188,13 @@ def getitem_filter(f):
 
     def outer(mapper):
         def inner(item):
-            return FiniteGenerator.wrap(item).adapt(filter_item).map_values(mapper).result_or_nv
+            return FiniteGenerator.wrap(item).adapt(filter_item).map_values(mapper).result_or_none
 
         if __debug__:
-            inner.mapper_type = ('getitem_filter', getitem_filter)
+            inner.mapper_type = ("getitem_filter", getitem_filter)
             inner.mapper_args = f
         return inner
+
     return outer
 
 
@@ -197,11 +205,10 @@ def getitem_dataclass(keys):
         sub_mappers = [(key, sub_outer(mapper)) for key, sub_outer in sub_outers]
 
         def inner(item):
-            # TODO: We should convert no_value to None here?
-            return keys(**FiniteGenerator(lambda: sub_mappers).call_values(item).filter_values(no_value).result)
+            return keys(**FiniteGenerator(lambda: sub_mappers).call_values(item).result)
 
         if __debug__:
-            inner.mapper_type = ('getitem_dataclass', getitem_dataclass)
+            inner.mapper_type = ("getitem_dataclass", getitem_dataclass)
             inner.mapper_args = keys
         return inner
 
@@ -215,10 +222,10 @@ def getitem_dict(mapping):
         sub_mappers = [(key, sub_outer(mapper)) for key, sub_outer in sub_outers]
 
         def inner(item):
-            return FiniteGenerator(lambda: sub_mappers).call_values(item).result_or_nv
+            return FiniteGenerator(lambda: sub_mappers).call_values(item).result_or_none
 
         if __debug__:
-            inner.mapper_type = ('getitem_dict', getitem_dict)
+            inner.mapper_type = ("getitem_dict", getitem_dict)
             inner.mapper_args = mapping
         return inner
 
@@ -233,10 +240,10 @@ def getitem_list(keys):
 
         def inner(item):
             results = FiniteGenerator(lambda: sub_mappers).call_values(item).result
-            return list(results.values()) if results else no_value
+            return list(results.values()) if results else None
 
         if __debug__:
-            inner.mapper_type = ('getitem_list', getitem_list)
+            inner.mapper_type = ("getitem_list", getitem_list)
             inner.mapper_args = keys
         return inner
 
@@ -255,7 +262,7 @@ def apply(f, args=None, kwargs=None):
             return mapper(f_partial(item))
 
         if __debug__:
-            inner.mapper_type = ('apply', apply)
+            inner.mapper_type = ("apply", apply)
             inner.mapper_args = (f, args, kwargs)
         return inner
 
@@ -271,7 +278,7 @@ def call(args=None, kwargs=None):
             return mapper(item(*args, **kwargs))
 
         if __debug__:
-            inner.mapper_type = ('call', call)
+            inner.mapper_type = ("call", call)
             inner.mapper_args = (args, kwargs)
         return inner
 
@@ -279,7 +286,9 @@ def call(args=None, kwargs=None):
 
 
 def map_values(f):
-    f = to_lambda(f, args_resolver=args_resolver.from_allowed_signatures(('_',), ('value',), ('key', 'value'), ('key', '_')))
+    f = to_lambda(
+        f, args_resolver=args_resolver.from_allowed_signatures(("_",), ("value",), ("key", "value"), ("key", "_"))
+    )
 
     argcount = getargcount(f)
     if argcount == 1:
@@ -291,20 +300,21 @@ def map_values(f):
 
     def outer(mapper):
         def inner(item):
-            result = FiniteGenerator.wrap(item).adapt(map_item).result_or_nv
-            if no_value(result):
+            result = FiniteGenerator.wrap(item).adapt(map_item).result_or_none
+            if result is not None:
                 result = mapper(result)
             return result
 
         if __debug__:
-            inner.mapper_type = ('map_values', map_values)
+            inner.mapper_type = ("map_values", map_values)
             inner.mapper_args = f
         return inner
 
     return outer
 
+
 def map_kv(f):
-    f = to_lambda(f, args_resolver=args_resolver.from_allowed_signatures(('key', 'value'), ('key', '_')))
+    f = to_lambda(f, args_resolver=args_resolver.from_allowed_signatures(("key", "value"), ("key", "_")))
 
     argcount = getargcount(f)
     if argcount != 2:
@@ -312,22 +322,23 @@ def map_kv(f):
 
     def outer(mapper):
         def inner(item):
-            result = FiniteGenerator.wrap(item).map(f).result_or_nv
-            if no_value(result):
+            result = FiniteGenerator.wrap(item).map(f).result_or_none
+            if result is not None:
                 result = mapper(result)
             return result
 
         if __debug__:
-            inner.mapper_type = ('map_kv', map_kv)
+            inner.mapper_type = ("map_kv", map_kv)
             inner.mapper_args = f
         return inner
 
     return outer
 
 
-
 def map_keys(f):
-    f = to_lambda(f, args_resolver=args_resolver.from_allowed_signatures(('_',), ('key',), ('key', 'value'), ('_', 'value')))
+    f = to_lambda(
+        f, args_resolver=args_resolver.from_allowed_signatures(("_",), ("key",), ("key", "value"), ("_", "value"))
+    )
 
     argcount = getargcount(f)
     if argcount == 1:
@@ -339,14 +350,13 @@ def map_keys(f):
 
     def outer(mapper):
         def inner(item):
-            result = FiniteGenerator.wrap(item).adapt(map_item).result_or_nv
-            if no_value(result):
+            result = FiniteGenerator.wrap(item).adapt(map_item).result_or_none
+            if result is not None:
                 result = mapper(result)
             return result
 
-
         if __debug__:
-            inner.mapper_type = ('map_keys', map_keys)
+            inner.mapper_type = ("map_keys", map_keys)
             inner.mapper_args = f
         return inner
 

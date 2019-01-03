@@ -60,8 +60,8 @@ Out[4]: <Signature (x, y)>
 ## TODOs
 
 * [ ] prettyprinter is a bit meh sometimes
-* [ ] I need a read-only wrapper around dicts for data access.
-* [ ] get rid of no_value?
+* [ ] I need a read-only wrapper around dicts for using attrs instead of indexing.
+* [x] get rid of no_value?
 * [x] find another name for IndexedMapping?
 * [x] support indexing by another Teddy instance or an IndexedMapping.
 * [x] we need a sequential type that exposes a dict interface but stores a list internally...

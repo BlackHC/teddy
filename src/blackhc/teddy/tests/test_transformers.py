@@ -123,3 +123,7 @@ def test_map_kv():
 
 def test_call_values():
     assert tuple(transformers.call_values(1)(((0, lambda x: x + 1), (1, lambda x: x + 2)))) == ((0, 2), (1, 3))
+
+
+def test_drop_nones():
+    assert tuple(transformers.drop_nones(((0, None), (1, 2), (2, None)))) == ((1, 2),)

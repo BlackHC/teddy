@@ -59,4 +59,9 @@ def call_values(*args):
     def inner(generator):
         for key, value in generator:
             yield key, value(*args)
+
     return inner
+
+
+def drop_nones(generator):
+    return ((key, value) for key, value in generator if value is not None)

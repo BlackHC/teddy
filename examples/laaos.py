@@ -5,7 +5,7 @@ import functools
 import operator
 import itertools
 
-from blackhc.implicit_lambda import call, contains
+from implicit_lambda import call, contains
 from blackhc.teddy import *
 
 from data import laaos_data

@@ -12,8 +12,8 @@ from blackhc.teddy import no_value
 from blackhc.teddy import interface
 from blackhc.teddy import keyed_sequence
 
-from blackhc.implicit_lambda import to_lambda, is_lambda_dsl
-from blackhc.implicit_lambda import args_resolver
+from implicit_lambda import to_lambda, is_lambda_dsl
+from implicit_lambda import args_resolver
 
 
 @dataclasses.dataclass(frozen=True)
@@ -47,7 +47,7 @@ class FiniteGenerator:
         return self.adapt(transformers.map_values(f))
 
     def map(self, f):
-        return self.adapt(transformers.map(f))
+        return self.adapt(transformers.map_kv(f))
 
     def call_values(self, *args):
         return self.adapt(transformers.call_values(*args))
@@ -285,7 +285,7 @@ def map_values(f):
     if argcount == 1:
         map_item = transformers.map_values(f)
     elif argcount == 2:
-        map_item = transformers.map(lambda key, value: (key, f(key, value)))
+        map_item = transformers.map_kv(lambda key, value: (key, f(key, value)))
     else:
         raise NotImplementedError(f"{f} not supported for filtering (only 1 or 2 arguments)!")
 
@@ -333,7 +333,7 @@ def map_keys(f):
     if argcount == 1:
         map_item = transformers.map_keys(f)
     elif argcount == 2:
-        map_item = transformers.map(lambda key, value: (f(key, value), value))
+        map_item = transformers.map_kv(lambda key, value: (f(key, value), value))
     else:
         raise NotImplementedError(f"{f} not supported for filtering (only 1 or 2 arguments)!")
 

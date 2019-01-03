@@ -10,9 +10,9 @@ import operator
 import itertools
 import dataclasses
 import typing
-from blackhc.implicit_lambda import _, to_lambda, inline_expr, get_expr, literal, call
-from blackhc.implicit_lambda.details import expression
-from blackhc.implicit_lambda.details import lambda_dsl
+from implicit_lambda import _, to_lambda, inline_expr, get_expr, literal, call
+from implicit_lambda.details import expression
+from implicit_lambda.details import lambda_dsl
 
 
 with open("./data/swapi.json") as f:

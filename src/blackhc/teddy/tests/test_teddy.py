@@ -123,13 +123,13 @@ def test_getitem_map_v():
 
 
 def test_getitem_map_kv():
-    from blackhc.implicit_lambda.builtins import str
+    from implicit_lambda.builtins import str
 
     assert teddy(simple_list).map((str._(_key), _value - 1)).result == {"0": 0, "1": 1, "2": 2, "3": 3}
 
 
 def test_getitem_map_k():
-    from blackhc.implicit_lambda.builtins import str
+    from implicit_lambda.builtins import str
 
     assert teddy(simple_list).map_keys(str._(_key)).result == {"0": 1, "1": 2, "2": 3, "3": 4}
 

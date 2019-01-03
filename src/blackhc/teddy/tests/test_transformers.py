@@ -117,8 +117,8 @@ def test_map_values():
     assert tuple(transformers.map_values(lambda value: value + 1)(((-10, 0), (-9, 1)))) == ((-10, 1), (-9, 2))
 
 
-def test_map():
-    assert tuple(transformers.map(lambda key, value: (key + 1, value + 2))(((0, 1), (2, 3)))) == ((1, 3), (3, 5))
+def test_map_kv():
+    assert tuple(transformers.map_kv(lambda key, value: (key + 1, value + 2))(((0, 1), (2, 3)))) == ((1, 3), (3, 5))
 
 
 def test_call_values():

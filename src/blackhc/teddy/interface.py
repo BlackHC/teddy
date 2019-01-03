@@ -1,6 +1,6 @@
 import dataclasses
 
-from blackhc.implicit_lambda import arg, _
+from implicit_lambda import arg, _
 
 
 all_keys = slice(None, None, None)

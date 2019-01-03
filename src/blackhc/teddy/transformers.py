@@ -51,7 +51,7 @@ def map_values(f):
     return lambda generator: ((key, f(value)) for key, value in generator)
 
 
-def map(f):
+def map_kv(f):
     return lambda generator: (f(key, value) for key, value in generator)
 
 

@@ -356,3 +356,34 @@ The issue with that is that it doesn't allow for key lookups. Maybe not somethin
 MappedSequence even supports * and ** correctly withich is amazing.
 
 I wonder whether I should look into turning it into a standalone package. It might need extra functionality.
+
+## Another take a structured getitems.
+
+We have the following equivalence for final statements: `a['a', 'b'] == a.map(dict(a=_.a, b=_.b))`
+However, the former moves the 'cursor' into the fields, while the latter does not.
+`a['a', 'b'] == a.map(MappedSequence(a=_.a, b=_.b))[:]`
+
+`[...]` also descends down on the expression path.
+
+Another interesting paradigm would be:
+`a[{key_filter: value_filter}]`, `a[{key_filter}]`, `a[value_filter]`
+
+However, this makes it impossible to specify key names explicitly.
+
+Going back on step:
+`a[key_filter]` makes sense.
+`a[{'b': key_filter}] == a['b'][key_filter]` could make sense. However, it is unnecessarily ambiguous.
+
+#### Does supporting dataclasses as output objects make sense?
+
+```
+@dataclass
+class Contact:
+    name: str
+    phone: str
+```
+
+`persons[:][Contact]` is a `MappedSequence[key, Contact]` and you can only iterate over the first dimension.
+`persons[:]['name', 'phone']` is a `MappedSequence[key, MappedSequence[str, str]]`
+
+`persons[:][Contact].convert(Contact)` could also make sense.

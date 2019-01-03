@@ -20,7 +20,10 @@ class Teddy:
 
     @property
     def result(self):
-        return self.iterable(id_func)
+        try:
+            return self.iterable(id_func)
+        except Exception:
+            raise RuntimeError('Result computation error')
 
     def _teddy(self, **updates):
         return dataclasses.replace(self, **updates)
@@ -39,24 +42,32 @@ class Teddy:
     def __call__(self, f=None):
         return self.apply(f)
 
+    def map_values(self, f):
+        return self._chain(popo.map_values(f))
+
     def map(self, f):
-        return self._chain(popo.map_values_or_kv(f))
+        return self._chain(popo.map_kv(f))
 
     def map_keys(self, f):
         return self._chain(popo.map_keys(f))
 
     def __getitem__(self, key):
+        if isinstance(key, Teddy):
+            key = key.result
+
         return self._chain(popo.getitem(key, preserve_single_index=self.preserve_single_index))
 
     def __getattr__(self, key):
         return self._chain(popo.getitem(key, preserve_single_index=self.preserve_single_index))
 
-    __repr__ = prettyprinter.pretty_repr
+    #__repr__ = prettyprinter.pretty_repr
+    def __repr__(self):
+        return f"{type(self)}({self.result})"
 
 
-@prettyprinter.register_pretty(Teddy)
-def repr_teddy(value, ctx):
-    return prettyprinter.pretty_call(ctx, type(value), value.iterable(id_func))
+# @prettyprinter.register_pretty(Teddy)
+# def repr_teddy(value, ctx):
+#     return prettyprinter.pretty_call(ctx, type(value), value.result)
 
 
 def teddy(data, *, preserve_single_index=False):

@@ -6,10 +6,7 @@ from blackhc.implicit_lambda import arg, _
 all_keys = slice(None, None, None)
 
 
-# This ordering is used to ensure that filter and map implicit_lambdas get the right argument order automatically
-arg_ordering = ["key", "value", "_"]
-
-
+# In general only, _, _key and _value will be allowed as implicit lambda signatures.
 _key = arg(0, "key")
 _value = arg(0, "value")
 

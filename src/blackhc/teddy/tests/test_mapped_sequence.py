@@ -43,3 +43,10 @@ def test_hash():
     hash(ms)
 
     assert {ms: ms}[ms] == ms
+
+
+def test_constructors():
+    assert MappedSequence(a=1, b=2) == dict(a=1, b=2)
+    assert MappedSequence({1: 2, 2: 3}) == {1: 2, 2: 3}
+    assert MappedSequence(((1, 2), (2, 3))) == {1: 2, 2: 3}
+    assert MappedSequence(zip((1, 2), (2, 3))) == {1: 2, 2: 3}

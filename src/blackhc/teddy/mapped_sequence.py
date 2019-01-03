@@ -1,6 +1,7 @@
 """A sequence that has custom indices, or a dict that behaves like a sequence."""
 import collections.abc as abc
 import dataclasses
+import prettyprinter
 
 from blackhc.teddy.interface import Literal, lit
 
@@ -27,7 +28,9 @@ class MappedSequence(abc.Collection):
     _keys: tuple
     _values: tuple
 
-    def __init__(self, mapping, *, keys=None, values=None):
+    def __init__(self, mapping=None, *, keys=None, values=None, **kwargs):
+        mapping = mapping or kwargs
+
         if not isinstance(mapping, dict):
             mapping = dict(mapping)
         self._mapping = mapping
@@ -89,8 +92,13 @@ class MappedSequence(abc.Collection):
     def __hash__(self):
         return hash((self._keys, self._values))
 
+    #__repr__ = prettyprinter.pretty_repr
     def __repr__(self):
-        return f"{type(self).__name__}({tuple(self.items())})"
+        return f"{type(self)}{tuple(self._mapping.items())}"
+
+# @prettyprinter.register_pretty(MappedSequence)
+# def repr_teddy(value, ctx):
+#     return prettyprinter.pretty_call(ctx, type(value).__name__, *value._mapping.items())
 
 
 class MappingView(abc.Sized):
@@ -102,8 +110,12 @@ class MappingView(abc.Sized):
     def __len__(self):
         return len(self._mapping)
 
-    def __repr__(self):
-        return "{0.__class__.__qualname__}({0._mapping!r})".format(self)
+    __repr__ = prettyprinter.pretty_repr
+
+
+@prettyprinter.register_pretty(MappingView)
+def repr_teddy(value, ctx):
+    return prettyprinter.pretty_call(ctx, type(value), **value._mapping)
 
 
 class KeysView(MappingView, abc.Set):

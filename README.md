@@ -14,14 +14,56 @@ record = namedtuple
 data = list()
 ```
 
-## Private Notes
+## Python WTFs
 
-### TODOs
+### `__getattr__` also gets called for third-party AttributeErrors
 
-* [ ] find another name for IndexedMapping?
-* [ ] support indexing by another Teddy instance or an IndexedMapping.
+Default attribute access does also forward to your `__getattr__` if a property descriptor raises
+an unrelated `AttributeError`.
+
+```
+In [6]: class A:
+   ...:     @property
+   ...:     def result(self):
+   ...:         return [1,2].a
+   ...:
+   ...:     def __getattr__(self, key):
+   ...:         print('hah')
+   ...:
+
+In [7]: A().result
+hah
+```
+
+### `inspect.signature` doesn't get along with `@staticmethod` in custom object
+
+```
+Python 3.7.1 (default, Dec 10 2018, 22:54:23) [MSC v.1915 64 bit (AMD64)]
+Type 'copyright', 'credits' or 'license' for more information
+IPython 7.2.0 -- An enhanced Interactive Python. Type '?' for help.
+
+In [1]: import inspect
+
+In [2]: class A:
+   ...:     @staticmethod
+   ...:     def __call__(x,y):
+   ...:         return y
+   ...:
+
+In [3]: inspect.signature(A())
+Out[3]: <Signature (y)>
+
+In [4]: inspect.signature(A().__call__)
+Out[4]: <Signature (x, y)>
+```
+
+## TODOs
+
+* [ ] get rid of no_value?
+* [x] find another name for IndexedMapping?
+* [x] support indexing by another Teddy instance or an IndexedMapping.
 * [x] we need a sequential type that exposes a dict interface but stores a list internally...
-* [d] figure out a structure for POPO vs other possible impls
+* ~~[ ] figure out a structure for POPO vs other possible impls~~
 * [x] add tests
 * [ ] figure out a name for different kinds of predicates
 * [x] add support for implicit lambdas

@@ -13,11 +13,12 @@ from blackhc.teddy import interface
 from blackhc.teddy import mapped_sequence
 
 from blackhc.implicit_lambda import to_lambda, is_lambda_dsl
+from blackhc.implicit_lambda import args_resolver
 
 
 @dataclasses.dataclass(frozen=True)
 class FiniteGenerator:
-    __slots__ = "generator_lambda"
+    __slots__ = ("generator_lambda",)
     generator_lambda: typing.Callable[[], typing.Generator]
 
     @staticmethod
@@ -25,7 +26,10 @@ class FiniteGenerator:
         return FiniteGenerator(lambda: transformers.to_kv(obj))
 
     def adapt(self, transformers: callable):
-        return FiniteGenerator(lambda: transformers(self.generator_lambda()))
+        new_generator = FiniteGenerator(lambda: transformers(self.generator_lambda()))
+        if __debug__:
+            new_generator.generator_lambda.previous = self.generator_lambda
+        return new_generator
 
     def filter_keys(self, f):
         return self.adapt(transformers.filter_keys(f))
@@ -68,6 +72,9 @@ def key_getter(key):
             return item[key] if -len(item) <= key < len(item) else no_value
         if dataclasses.is_dataclass(item):
             return getattr(item, key) if hasattr(item, key) else no_value
+        if isinstance(item, mapped_sequence.MappedSequence):
+            # NOTE: MappedSequence is a Sequence so we need to check the keys.
+            return item[key] if key in item.keys() else no_value
         return no_value
 
     return get_key
@@ -97,6 +104,9 @@ def getitem(keys, preserve_single_index):
     if callable(keys):
         return getitem_filter(keys)
 
+    if isinstance(keys, mapped_sequence.MappedSequence):
+        return getitem_dict({**keys})
+
     if isinstance(keys, interface.Literal):
         keys = keys.value
 
@@ -116,6 +126,9 @@ def getitem_atom_preserve_single_value(key):
                 return mapped_sequence.MappedSequence({key: result})
             return result
 
+        if __debug__:
+            inner.mapper_type = ('getitem_atom_preserve_single_value', getitem_atom_preserve_single_value)
+            inner.mapper_args = key
         return inner
 
     return outer
@@ -131,6 +144,9 @@ def getitem_atom(key):
                 result = mapper(result)
             return result
 
+        if __debug__:
+            inner.mapper_type = ('getitem_atom', getitem_atom)
+            inner.mapper_args = key
         return inner
 
     return outer
@@ -140,6 +156,8 @@ def mapper_all(mapper):
     def inner(item):
         return FiniteGenerator.wrap(item).map_values(mapper).result_or_nv
 
+    if __debug__:
+        inner.mapper_type = ('mapper_all', mapper_all)
     return inner
 
 
@@ -152,7 +170,7 @@ def getargcount(f):
 
 
 def getitem_filter(f):
-    f = to_lambda(f, 1, ordering=interface.arg_ordering)
+    f = to_lambda(f, args_resolver=args_resolver.from_allowed_signatures(('_',), ('key',), ('_', 'value'), ('key', 'value'), ('key', '_')))
     argcount = getargcount(f)
     if argcount == 1:
         filter_item = transformers.filter_keys(f)
@@ -165,8 +183,10 @@ def getitem_filter(f):
         def inner(item):
             return FiniteGenerator.wrap(item).adapt(filter_item).map_values(mapper).result_or_nv
 
+        if __debug__:
+            inner.mapper_type = ('getitem_filter', getitem_filter)
+            inner.mapper_args = f
         return inner
-
     return outer
 
 
@@ -180,13 +200,16 @@ def getitem_dataclass(keys):
             # TODO: We should convert no_value to None here?
             return keys(**FiniteGenerator(lambda: sub_mappers).call_values(item).filter_values(no_value).result)
 
+        if __debug__:
+            inner.mapper_type = ('getitem_dataclass', getitem_dataclass)
+            inner.mapper_args = keys
         return inner
 
     return outer
 
 
-def getitem_dict(keys):
-    sub_outers = [(name, getitem(key, preserve_single_index=False)) for name, key in keys.items()]
+def getitem_dict(mapping):
+    sub_outers = [(name, getitem(key, preserve_single_index=False)) for name, key in mapping.items()]
 
     def outer(mapper):
         sub_mappers = [(key, sub_outer(mapper)) for key, sub_outer in sub_outers]
@@ -194,28 +217,34 @@ def getitem_dict(keys):
         def inner(item):
             return FiniteGenerator(lambda: sub_mappers).call_values(item).result_or_nv
 
+        if __debug__:
+            inner.mapper_type = ('getitem_dict', getitem_dict)
+            inner.mapper_args = mapping
         return inner
 
     return outer
 
 
 def getitem_list(keys):
-    sub_outers = [getitem(key, preserve_single_index=False) for key in keys]
+    sub_outers = [(key, getitem(key, preserve_single_index=False)) for key in keys]
 
     def outer(mapper):
-        sub_mappers = [sub_outer(mapper) for sub_outer in sub_outers]
+        sub_mappers = [(key, sub_outer(mapper)) for key, sub_outer in sub_outers]
 
         def inner(item):
             results = FiniteGenerator(lambda: sub_mappers).call_values(item).result
-            return results.values() if results else no_value
+            return list(results.values()) if results else no_value
 
+        if __debug__:
+            inner.mapper_type = ('getitem_list', getitem_list)
+            inner.mapper_args = keys
         return inner
 
     return outer
 
 
 def apply(f, args=None, kwargs=None):
-    f = to_lambda(f, required_args=1)
+    f = to_lambda(f, args_resolver=args_resolver.flexible_args(required_args=1))
 
     args = args or []
     kwargs = kwargs or {}
@@ -225,6 +254,9 @@ def apply(f, args=None, kwargs=None):
         def inner(item):
             return mapper(f_partial(item))
 
+        if __debug__:
+            inner.mapper_type = ('apply', apply)
+            inner.mapper_args = (f, args, kwargs)
         return inner
 
     return outer
@@ -238,39 +270,84 @@ def call(args=None, kwargs=None):
         def inner(item):
             return mapper(item(*args, **kwargs))
 
+        if __debug__:
+            inner.mapper_type = ('call', call)
+            inner.mapper_args = (args, kwargs)
         return inner
 
     return outer
 
 
-def map_values_or_kv(f):
-    f = to_lambda(f, 1, ordering=interface.arg_ordering)
+def map_values(f):
+    f = to_lambda(f, args_resolver=args_resolver.from_allowed_signatures(('_',), ('value',), ('key', 'value'), ('key', '_')))
 
-    # TODO: how do we check signatures in general?
     argcount = getargcount(f)
     if argcount == 1:
         map_item = transformers.map_values(f)
     elif argcount == 2:
-        map_item = transformers.map(f)
+        map_item = transformers.map(lambda key, value: (key, f(key, value)))
     else:
         raise NotImplementedError(f"{f} not supported for filtering (only 1 or 2 arguments)!")
 
     def outer(mapper):
         def inner(item):
-            return FiniteGenerator.wrap(item).adapt(map_item).map_values(mapper).result_or_nv
+            result = FiniteGenerator.wrap(item).adapt(map_item).result_or_nv
+            if no_value(result):
+                result = mapper(result)
+            return result
 
+        if __debug__:
+            inner.mapper_type = ('map_values', map_values)
+            inner.mapper_args = f
+        return inner
+
+    return outer
+
+def map_kv(f):
+    f = to_lambda(f, args_resolver=args_resolver.from_allowed_signatures(('key', 'value'), ('key', '_')))
+
+    argcount = getargcount(f)
+    if argcount != 2:
+        raise NotImplementedError(f"{f} not supported for filtering (only 1 or 2 arguments)!")
+
+    def outer(mapper):
+        def inner(item):
+            result = FiniteGenerator.wrap(item).map(f).result_or_nv
+            if no_value(result):
+                result = mapper(result)
+            return result
+
+        if __debug__:
+            inner.mapper_type = ('map_kv', map_kv)
+            inner.mapper_args = f
         return inner
 
     return outer
 
 
+
 def map_keys(f):
-    f = to_lambda(f, 1)
+    f = to_lambda(f, args_resolver=args_resolver.from_allowed_signatures(('_',), ('key',), ('key', 'value'), ('_', 'value')))
+
+    argcount = getargcount(f)
+    if argcount == 1:
+        map_item = transformers.map_keys(f)
+    elif argcount == 2:
+        map_item = transformers.map(lambda key, value: (f(key, value), value))
+    else:
+        raise NotImplementedError(f"{f} not supported for filtering (only 1 or 2 arguments)!")
 
     def outer(mapper):
         def inner(item):
-            return FiniteGenerator.wrap(item).map_keys(f).map_values(mapper).result_or_nv
+            result = FiniteGenerator.wrap(item).adapt(map_item).result_or_nv
+            if no_value(result):
+                result = mapper(result)
+            return result
 
+
+        if __debug__:
+            inner.mapper_type = ('map_keys', map_keys)
+            inner.mapper_args = f
         return inner
 
     return outer

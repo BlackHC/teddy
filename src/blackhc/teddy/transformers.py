@@ -56,4 +56,7 @@ def map(f):
 
 
 def call_values(*args):
-    return lambda generator: ((key, value(*args)) for key, value in generator)
+    def inner(generator):
+        for key, value in generator:
+            yield key, value(*args)
+    return inner

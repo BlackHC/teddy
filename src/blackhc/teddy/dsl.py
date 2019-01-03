@@ -67,7 +67,10 @@ class Teddy:
 
 @prettyprinter.register_pretty(Teddy)
 def repr_teddy(value, ctx):
-    return prettyprinter.pretty_call(ctx, type(value), value.result)
+    try:
+        return prettyprinter.pretty_call(ctx, type(value), value.result)
+    except Exception as e:
+        return prettyprinter.pretty_call(ctx, type(value), e)
 
 
 def teddy(data, *, preserve_single_index=False):

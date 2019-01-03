@@ -29,6 +29,11 @@ class KeyedSequence(abc.Collection):
     _values: tuple
 
     def __init__(self, mapping=None, *, keys=None, values=None, **kwargs):
+        # NOTE: need to initialize the fields in case dict(mapping) throws.
+        self._mapping = {}
+        self._keys = ()
+        self._values = ()
+
         mapping = mapping or kwargs
 
         if not isinstance(mapping, dict):

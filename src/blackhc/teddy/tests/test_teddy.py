@@ -119,7 +119,7 @@ def test_getitem_filter_kv():
 
 
 def test_getitem_map_v():
-    assert teddy(simple_list).map(_value + 1).result == [2, 3, 4, 5]
+    assert teddy(simple_list).map_values(_value + 1).result == [2, 3, 4, 5]
 
 
 def test_getitem_map_kv():

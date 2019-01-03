@@ -1,7 +1,7 @@
 import dataclasses
 import pytest
 
-from blackhc.teddy import teddy, lit, _key, _value, MappedSequence
+from blackhc.teddy import teddy, lit, _key, _value, KeyedSequence
 
 
 simple_list = [1, 2, 3, 4]
@@ -143,8 +143,8 @@ def test_iter():
 def test_mappedsequence():
     assert teddy({1: 5, 2: 6, 3: 7})[dict(a=1, b=2)].result == dict(a=5, b=6)
 
-    ms = MappedSequence(dict(a=1, b=2))
-    ms2 = MappedSequence({1: 5, 2: 6, 3: 7})
+    ms = KeyedSequence(dict(a=1, b=2))
+    ms2 = KeyedSequence({1: 5, 2: 6, 3: 7})
 
     assert teddy(ms2)[ms].result == dict(a=5, b=6)
 

@@ -10,7 +10,7 @@ import inspect
 from blackhc.teddy import transformers
 from blackhc.teddy import no_value
 from blackhc.teddy import interface
-from blackhc.teddy import mapped_sequence
+from blackhc.teddy import keyed_sequence
 
 from blackhc.implicit_lambda import to_lambda, is_lambda_dsl
 from blackhc.implicit_lambda import args_resolver
@@ -57,7 +57,7 @@ class FiniteGenerator:
 
     @property
     def result(self):
-        return mapped_sequence.MappedSequence(iter(self))
+        return keyed_sequence.KeyedSequence(iter(self))
 
     @property
     def result_or_nv(self):
@@ -72,8 +72,8 @@ def key_getter(key):
             return item[key] if -len(item) <= key < len(item) else no_value
         if dataclasses.is_dataclass(item):
             return getattr(item, key) if hasattr(item, key) else no_value
-        if isinstance(item, mapped_sequence.MappedSequence):
-            # NOTE: MappedSequence is a Sequence so we need to check the keys.
+        if isinstance(item, keyed_sequence.KeyedSequence):
+            # NOTE: KeyedSequence is a Sequence so we need to check the keys.
             return item[key] if key in item.keys() else no_value
         return no_value
 
@@ -104,7 +104,7 @@ def getitem(keys, preserve_single_index):
     if callable(keys):
         return getitem_filter(keys)
 
-    if isinstance(keys, mapped_sequence.MappedSequence):
+    if isinstance(keys, keyed_sequence.KeyedSequence):
         return getitem_dict({**keys})
 
     if isinstance(keys, interface.Literal):
@@ -123,7 +123,7 @@ def getitem_atom_preserve_single_value(key):
         def inner(item):
             result = sub_outer(mapper)(item)
             if no_value(result):
-                return mapped_sequence.MappedSequence({key: result})
+                return keyed_sequence.KeyedSequence({key: result})
             return result
 
         if __debug__:

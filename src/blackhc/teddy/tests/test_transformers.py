@@ -1,7 +1,7 @@
 import pytest
 import dataclasses
 from blackhc.teddy import transformers
-from blackhc.teddy import mapped_sequence
+from blackhc.teddy import keyed_sequence
 
 
 def test_dataclass_to_kv():
@@ -77,7 +77,7 @@ def test_to_kv():
 
     assert tuple(transformers.to_kv(DC2(1, 2))) == (("a", 1), ("b", 2))
 
-    ms = mapped_sequence.MappedSequence({1: 2, 2: 3})
+    ms = keyed_sequence.KeyedSequence({1: 2, 2: 3})
     assert tuple(transformers.to_kv(ms)) == ((1, 2), (2, 3))
 
 

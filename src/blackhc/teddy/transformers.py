@@ -1,6 +1,6 @@
 import dataclasses
 
-from blackhc.teddy.mapped_sequence import MappedSequence
+from blackhc.teddy.keyed_sequence import KeyedSequence
 
 
 def dataclass_to_kv(obj):
@@ -24,7 +24,7 @@ def to_kv(obj: object):
         return ((i, value) for i, value in enumerate(obj))
     if isinstance(obj, dict):
         return ((key, value) for key, value in obj.items())
-    if isinstance(obj, MappedSequence):
+    if isinstance(obj, KeyedSequence):
         return obj.items()
     if dataclasses.is_dataclass(obj):
         return ((key, value) for key, value in dataclass_to_kv(obj))

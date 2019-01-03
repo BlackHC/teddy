@@ -353,7 +353,7 @@ Alternatively, we could always return a list of pairs. (Ie as if we always impli
 
 The issue with that is that it doesn't allow for key lookups. Maybe not something we actually need usually though.
 
-MappedSequence even supports * and ** correctly withich is amazing.
+KeyedSequence even supports * and ** correctly withich is amazing.
 
 I wonder whether I should look into turning it into a standalone package. It might need extra functionality.
 
@@ -361,7 +361,7 @@ I wonder whether I should look into turning it into a standalone package. It mig
 
 We have the following equivalence for final statements: `a['a', 'b'] == a.map(dict(a=_.a, b=_.b))`
 However, the former moves the 'cursor' into the fields, while the latter does not.
-`a['a', 'b'] == a.map(MappedSequence(a=_.a, b=_.b))[:]`
+`a['a', 'b'] == a.map(KeyedSequence(a=_.a, b=_.b))[:]`
 
 `[...]` also descends down on the expression path.
 
@@ -383,7 +383,7 @@ class Contact:
     phone: str
 ```
 
-`persons[:][Contact]` is a `MappedSequence[key, Contact]` and you can only iterate over the first dimension.
-`persons[:]['name', 'phone']` is a `MappedSequence[key, MappedSequence[str, str]]`
+`persons[:][Contact]` is a `KeyedSequence[key, Contact]` and you can only iterate over the first dimension.
+`persons[:]['name', 'phone']` is a `KeyedSequence[key, KeyedSequence[str, str]]`
 
 `persons[:][Contact].convert(Contact)` could also make sense.

@@ -60,14 +60,14 @@ class Teddy:
     def __getattr__(self, key):
         return self._chain(popo.getitem(key, preserve_single_index=self.preserve_single_index))
 
-    #__repr__ = prettyprinter.pretty_repr
-    def __repr__(self):
-        return f"{type(self)}({self.result})"
+    __repr__ = prettyprinter.pretty_repr
+    #def __repr__(self):
+    #    return f"{type(self)}({self.result})"
 
 
-# @prettyprinter.register_pretty(Teddy)
-# def repr_teddy(value, ctx):
-#     return prettyprinter.pretty_call(ctx, type(value), value.result)
+@prettyprinter.register_pretty(Teddy)
+def repr_teddy(value, ctx):
+    return prettyprinter.pretty_call(ctx, type(value), value.result)
 
 
 def teddy(data, *, preserve_single_index=False):

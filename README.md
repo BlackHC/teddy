@@ -59,6 +59,8 @@ Out[4]: <Signature (x, y)>
 
 ## TODOs
 
+* [ ] prettyprinter is a bit meh sometimes
+* [ ] I need a read-only wrapper around dicts for data access.
 * [ ] get rid of no_value?
 * [x] find another name for IndexedMapping?
 * [x] support indexing by another Teddy instance or an IndexedMapping.

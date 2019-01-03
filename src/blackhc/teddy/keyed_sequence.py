@@ -5,7 +5,7 @@ import prettyprinter
 
 from blackhc.teddy.interface import Literal, lit
 
-__all__ = ["idx", "lit", "MappedSequence"]
+__all__ = ["idx", "lit", "KeyedSequence"]
 
 dict_keys = type({}.keys())
 dict_values = type({}.values())
@@ -22,7 +22,7 @@ def idx(row):
     return Index(row)
 
 
-class MappedSequence(abc.Collection):
+class KeyedSequence(abc.Collection):
     __slots__ = ("_mapping", "_keys", "_values")
     _mapping: dict
     _keys: tuple
@@ -66,7 +66,7 @@ class MappedSequence(abc.Collection):
         return value in self._values
 
     def __reversed__(self):
-        return MappedSequence(self._mapping, keys=tuple(reversed(self._keys)), values=tuple(reversed(self._values)))
+        return KeyedSequence(self._mapping, keys=tuple(reversed(self._keys)), values=tuple(reversed(self._values)))
 
     def items(self):
         return ItemsView(self)
@@ -81,7 +81,7 @@ class MappedSequence(abc.Collection):
         return self._values.count(value)
 
     def __eq__(self, other):
-        if isinstance(other, MappedSequence):
+        if isinstance(other, KeyedSequence):
             return self._keys == other._keys and self._values == other._values
         if isinstance(other, dict):
             return self._keys == tuple(other.keys()) and self._values == tuple(other.values())
@@ -92,13 +92,13 @@ class MappedSequence(abc.Collection):
     def __hash__(self):
         return hash((self._keys, self._values))
 
-    #__repr__ = prettyprinter.pretty_repr
-    def __repr__(self):
-        return f"{type(self)}{tuple(self._mapping.items())}"
+    __repr__ = prettyprinter.pretty_repr
+    #def __repr__(self):
+    #    return f"{type(self)}{tuple(self._mapping.items())}"
 
-# @prettyprinter.register_pretty(MappedSequence)
-# def repr_teddy(value, ctx):
-#     return prettyprinter.pretty_call(ctx, type(value).__name__, *value._mapping.items())
+@prettyprinter.register_pretty(KeyedSequence)
+def repr_teddy(value, ctx):
+    return prettyprinter.pretty_call(ctx, 'KeyedSequence', *value._mapping.items())
 
 
 class MappingView(abc.Sized):

@@ -21,7 +21,10 @@ skywalker_films_urls = swapi.people.map_keys(_value["name"])[contains(_, "Skywal
 pprint(skywalker_films_urls.result)
 
 skywalker_films = swapi.films.map_keys(_value["url"])[skywalker_films_urls.result]
-pprint(skywalker_films.title.result)
+#pprint(skywalker_films.title.result)
 
 # pprint(swapi, depth=1)
 # pprint(swapi.films.map_keys(_value['url']), depth=2)
+
+# TODO this is broken???
+pprint(swapi.films.groupby('url')[skywalker_films_urls].map_values(lambda v: '').result, depth=5) #[skywalker_films_urls])

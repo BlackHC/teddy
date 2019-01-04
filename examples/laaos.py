@@ -18,5 +18,4 @@ pprint(laaos_data.store)
 
 pprint(teddy(laaos_data.store).iterations[:].num_epochs)
 pprint(teddy(laaos_data.store).iterations[:].test_metrics[:])
-
-# TODO: substructure maps!
+pprint(teddy(laaos_data.store).iterations[:]["num_epochs", "test_metrics"])

@@ -1,5 +1,5 @@
 """A sequence that has custom indices, or a dict that behaves like a sequence."""
-import collections.abc as abc
+from collections import abc
 import dataclasses
 import prettyprinter
 
@@ -121,7 +121,7 @@ class MappingView(abc.Sized):
 
 @prettyprinter.register_pretty(MappingView)
 def repr_teddy(value, ctx):
-    return prettyprinter.pretty_call(ctx, type(value), **value._mapping)
+    return prettyprinter.pretty_call(ctx, type(value), *value._mapping._mapping.items())
 
 
 class KeysView(MappingView, abc.Set):

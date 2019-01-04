@@ -353,7 +353,7 @@ Alternatively, we could always return a list of pairs. (Ie as if we always impli
 
 The issue with that is that it doesn't allow for key lookups. Maybe not something we actually need usually though.
 
-KeyedSequence even supports * and ** correctly withich is amazing.
+KeyedSequence even supports * and ** correctly with is amazing in itself.
 
 I wonder whether I should look into turning it into a standalone package. It might need extra functionality.
 
@@ -365,7 +365,7 @@ However, the former moves the 'cursor' into the fields, while the latter does no
 
 `[...]` also descends down on the expression path.
 
-Another interesting paradigm would be:
+Another interesting concept would be:
 `a[{key_filter: value_filter}]`, `a[{key_filter}]`, `a[value_filter]`
 
 However, this makes it impossible to specify key names explicitly.
@@ -387,3 +387,85 @@ class Contact:
 `persons[:]['name', 'phone']` is a `KeyedSequence[key, KeyedSequence[str, str]]`
 
 `persons[:][Contact].convert(Contact)` could also make sense.
+
+## 1/3
+
+I missed that a difference between `[key]` and `.attr` is the expectation that `[key]` accesses similar data whereas `.attr` might be all different.
+
+This could be a sensible expectation: We want to be able to iterate over data and ignore the keys when every entry is the same, but we don't want to lose that structure otherwise.
+
+Python usually doesn't support this. Dicts can contain arbitrary data.
+
+In the case of 'might be all different', what should we iterate over? Or no iteration support?
+Or actually a dict? So we can at most iterate over the keys?
+
+### Structured indexing
+
+Supporting structured indexing is only useful to allow for indirect lookups.
+`(a[b]).result[x] = a[b[x]].result`
+
+What is the value of having filters though?
+
+`a[[_key % 2 == 0, _key % 2 == 1]]` changes the order.
+
+`a[dict(even=_key % 2 == 0, odd=_key % == 1)]` is a bit stilted, but okay.
+
+So, we need a way to perform a path query ala GraphQL.
+
+`a.collect(_.b.c, _.e.f)` vs `a.collect(_.b.collect(_.c,_.d), _.e.collect(_.f,_.g))`
+could simply create subteddies and execute them and collect the results.
+
+`a.collect({'b': 'c', 'e': 'f'})` = `a.collect(_.b.c, _.e.f)`
+`a.collect(_)` = `a`
+
+### Map_keys etc don't descend atm
+
+This is a bit weird.
+
+We could always have the descend. We could have a method `same([teddies])`
+that applies every operator on the same level one after another.
+
+Or we could only descend in `[]` and `collect`, and not descend otherwise.
+We could also provide an `pipe([teddies])` to apply on the same level.
+
+```python
+class Zipper:
+    __slots__ = ('a', 'b')
+
+    def __init__(self, a, b):
+        self.a = a
+        self.b = b
+
+    def __getitem__(self, key):
+        return Zipper(self.a[key], self.b[key])
+
+    def items(self):
+        return (key, Zipper(self.a[key],self.b[key]) for key in a.keys() & b.keys())
+
+def zipper(a,b):
+    return teddy(Zipper(a,b))
+
+zipper(a,b)[:]
+```
+
+We could also define a subzipper: `teddy....zipper(_.a.groupby(_.cid),_.b.groupby(_.cid))[:]`
+
+We could use:
+`zipper(a,b)` as tuple with 0, 1 index
+`zipper(dict(a=a,b=b))` as named tuple
+`zipper([a, b])` as flattened zipper
+
+`zipper(_.a.groupby(_.cid),_.b.groupby(_.cid))` = `join(_.a, _.b, _.cid)`
+
+### Things to think about
+
+`groupby`, `pipe` and `zipper` seem to be working.
+
+`getitem_list` has issues :(
+`zipper([...])` doesn't do as suggested.
+`groupby` does not support _teddy lambdas :(
+
+There is no way to flatten a map at the moment.
+
+Also, I like the idea of differentiating between KeyedSequence and AttrMapping as main result types.
+There is no easy way to decide to create an AttrMapping atm.

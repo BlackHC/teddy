@@ -4,7 +4,10 @@ import prettyprinter
 import typing
 
 from blackhc.teddy import popo
+from blackhc.teddy import zipper
+from blackhc.teddy import attr_mapping
 
+from implicit_lambda import to_lambda
 
 def id_func(x):
     return x
@@ -51,6 +54,35 @@ class Teddy:
     def map_keys(self, f):
         return self._chain(popo.map_keys(f))
 
+    def zip(self):
+        return self._chain(popo.zip)
+
+    def groupby(self, keys, drop_none_keys=False, preserve_single_index=None):
+        preserve_single_index = preserve_single_index or self.preserve_single_index
+        return self._chain(popo.groupby(keys, drop_none_keys=drop_none_keys, preserve_single_index=preserve_single_index))
+
+    def pipe(self, *teddy_exprs, preserve_single_index=None):
+        preserve_single_index = preserve_single_index or self.preserve_single_index
+        # Teddy is callable so would pass through.
+        teddy_exprs = [to_lambda(teddy_expr) for teddy_expr in teddy_exprs]
+
+        mappers = []
+
+        for teddy_expr in teddy_exprs:
+            if not isinstance(teddy_expr, Teddy):
+                expr_teddy = teddy_expr(_teddy)
+            else:
+                # Assume, it's a zombie Teddy if teddy_expr is a Teddy.
+                expr_teddy = teddy_expr
+            mappers.append(expr_teddy.iterable(id_func))
+
+        return self._chain(popo.pipe(mappers))
+
+
+    def to_attr_map(self):
+        return self(attr_mapping.AttrMapping)
+
+
     def __getitem__(self, key):
         if isinstance(key, Teddy):
             key = key.result
@@ -73,5 +105,13 @@ def repr_teddy(value, ctx):
         return prettyprinter.pretty_call(ctx, type(value), e)
 
 
-def teddy(data, *, preserve_single_index=False):
+def teddy(data=None, *, preserve_single_index=False, **kwargs):
+    if data and kwargs:
+        raise SyntaxError('teddy can either be initialized using a tuple or using keywords!')
+    data = data or kwargs
     return Teddy(iterable=lambda mapper: mapper(data), preserve_single_index=preserve_single_index)
+
+
+_teddy = Teddy(iterable=id_func, preserve_single_index=False)
+
+teddy.zip = lambda data=None, *, preserve_single_index=False, **kwargs: teddy(data, **kwargs, preserve_single_index=preserve_single_index).zip()

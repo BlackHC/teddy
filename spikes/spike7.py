@@ -1,7 +1,7 @@
 """Spike 7 Re dict types"""
 import dataclasses
 import collections
-import collections.abc as abc
+from collections import abc
 
 
 @dataclasses.dataclass

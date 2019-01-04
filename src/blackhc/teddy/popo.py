@@ -4,12 +4,15 @@ Implementation details for handling POPOs.
 """
 import dataclasses
 import functools
+import itertools
 import typing
 import inspect
+from collections import abc
 
 from blackhc.teddy import transformers
 from blackhc.teddy import interface
 from blackhc.teddy import keyed_sequence
+from blackhc.teddy import zipper
 
 from implicit_lambda import to_lambda, is_lambda_dsl
 from implicit_lambda import args_resolver
@@ -68,9 +71,9 @@ class FiniteGenerator:
 
 def key_getter(key):
     def get_key(item):
-        if isinstance(item, dict):
+        if isinstance(item, abc.Mapping):
             return item[key] if key in item else None
-        if isinstance(item, (list, tuple)):
+        if isinstance(item, abc.Sequence):
             return item[key] if -len(item) <= key < len(item) else None
         if dataclasses.is_dataclass(item):
             return getattr(item, key) if hasattr(item, key) else None
@@ -138,10 +141,10 @@ def getitem_atom_preserve_single_value(key):
 
 def getitem_atom(key):
     def outer(mapper):
-        getitem = key_getter(key)
+        getkey = key_getter(key)
 
         def inner(item):
-            result = getitem(item)
+            result = getkey(item)
             if result is not None:
                 result = mapper(result)
             return result
@@ -233,14 +236,16 @@ def getitem_dict(mapping):
 
 
 def getitem_list(keys):
-    sub_outers = [(key, getitem(key, preserve_single_index=False)) for key in keys]
+    sub_outers = [(i, getitem(key, preserve_single_index=False)) for i, key in enumerate(keys)]
 
     def outer(mapper):
         sub_mappers = [(key, sub_outer(mapper)) for key, sub_outer in sub_outers]
 
         def inner(item):
             results = FiniteGenerator(lambda: sub_mappers).call_values(item).result
-            return list(results.values()) if results else None
+            return keyed_sequence.KeyedSequence(
+                enumerate(itertools.chain.from_iterable(map(lambda r: r.values(), results)))
+            )
 
         if __debug__:
             inner.mapper_type = ("getitem_list", getitem_list)
@@ -318,7 +323,7 @@ def map_kv(f):
 
     argcount = getargcount(f)
     if argcount != 2:
-        raise NotImplementedError(f"{f} not supported for filtering (only 1 or 2 arguments)!")
+        raise NotImplementedError(f"{f} not supported for filtering (only 2 arguments)!")
 
     def outer(mapper):
         def inner(item):
@@ -361,3 +366,52 @@ def map_keys(f):
         return inner
 
     return outer
+
+
+def groupby(keys, drop_none_keys=True, preserve_single_index=False):
+    keygetter = getitem(keys, preserve_single_index=preserve_single_index)(lambda x: x)
+
+    def outer(mapper):
+        #value_mapper = mapper_all(mapper)
+        #group_mapper = mapper_all(value_mapper)
+
+        def inner(item):
+            results = {}
+            for new_key, key_value in FiniteGenerator.wrap(item).map(
+                lambda key, value: (keygetter(value), (key, value))
+            ):
+                if drop_none_keys and new_key is None:
+                    continue
+
+                if new_key not in results:
+                    group = results[new_key] = []
+                group.append(key_value)
+            results = {key: keyed_sequence.KeyedSequence(group) for key, group in results.items()}
+            return mapper(keyed_sequence.KeyedSequence(dict(results))) or None
+
+        return inner
+
+    return outer
+
+
+def pipe(pipe_mappers):
+    def outer(mapper):
+        def inner(item):
+            result = item
+            for pipe_mapper in pipe_mappers:
+                result = pipe_mapper(result)
+                if result is None:
+                    return None
+            return mapper(result) or None
+
+        return inner
+
+    return outer
+
+
+def zip(mapper):
+    mapper_inside = mapper_all(mapper)
+    def inner(item):
+        return mapper_inside(zipper.Zipper(FiniteGenerator.wrap(item)))
+
+    return inner

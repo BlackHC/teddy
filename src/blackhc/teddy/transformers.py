@@ -1,5 +1,5 @@
 import dataclasses
-
+from collections import abc
 from blackhc.teddy.keyed_sequence import KeyedSequence
 
 
@@ -19,10 +19,22 @@ def attrs_to_kv(obj):
     return ((attr, getattr(obj, attr)) for attr in get_dict_or_slots(obj))
 
 
+def can_kv(obj: object):
+    if isinstance(obj, abc.Sequence):
+        return True
+    if isinstance(obj, abc.Mapping):
+        return True
+    if isinstance(obj, KeyedSequence):
+        return True
+    if dataclasses.is_dataclass(obj):
+        return True
+    return False
+
+
 def to_kv(obj: object):
-    if isinstance(obj, (list, tuple)):
+    if isinstance(obj, abc.Sequence):
         return ((i, value) for i, value in enumerate(obj))
-    if isinstance(obj, dict):
+    if isinstance(obj, abc.Mapping):
         return ((key, value) for key, value in obj.items())
     if isinstance(obj, KeyedSequence):
         return obj.items()

@@ -59,8 +59,10 @@ Out[4]: <Signature (x, y)>
 
 ## TODOs
 
+* [ ] the code could become simpler if it used key, value pairs everywhere internally?
+* [ ] tests for attr_mapping
 * [ ] prettyprinter is a bit meh sometimes
-* [ ] I need a read-only wrapper around dicts for using attrs instead of indexing.
+* [x] I need a read-only wrapper around dicts for using attrs instead of indexing.
 * [x] get rid of no_value?
 * [x] find another name for IndexedMapping?
 * [x] support indexing by another Teddy instance or an IndexedMapping.

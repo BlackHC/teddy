@@ -372,8 +372,8 @@ def groupby(keys, drop_none_keys=True, preserve_single_index=False):
     keygetter = getitem(keys, preserve_single_index=preserve_single_index)(lambda x: x)
 
     def outer(mapper):
-        #value_mapper = mapper_all(mapper)
-        #group_mapper = mapper_all(value_mapper)
+        # value_mapper = mapper_all(mapper)
+        # group_mapper = mapper_all(value_mapper)
 
         def inner(item):
             results = {}
@@ -411,6 +411,7 @@ def pipe(pipe_mappers):
 
 def zip(mapper):
     mapper_inside = mapper_all(mapper)
+
     def inner(item):
         return mapper_inside(zipper.Zipper(FiniteGenerator.wrap(item)))
 

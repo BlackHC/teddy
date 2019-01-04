@@ -9,6 +9,7 @@ from blackhc.teddy import attr_mapping
 
 from implicit_lambda import to_lambda
 
+
 def id_func(x):
     return x
 
@@ -59,7 +60,9 @@ class Teddy:
 
     def groupby(self, keys, drop_none_keys=False, preserve_single_index=None):
         preserve_single_index = preserve_single_index or self.preserve_single_index
-        return self._chain(popo.groupby(keys, drop_none_keys=drop_none_keys, preserve_single_index=preserve_single_index))
+        return self._chain(
+            popo.groupby(keys, drop_none_keys=drop_none_keys, preserve_single_index=preserve_single_index)
+        )
 
     def pipe(self, *teddy_exprs, preserve_single_index=None):
         preserve_single_index = preserve_single_index or self.preserve_single_index
@@ -78,10 +81,8 @@ class Teddy:
 
         return self._chain(popo.pipe(mappers))
 
-
     def to_attr_map(self):
         return self(attr_mapping.AttrMapping)
-
 
     def __getitem__(self, key):
         if isinstance(key, Teddy):
@@ -107,11 +108,13 @@ def repr_teddy(value, ctx):
 
 def teddy(data=None, *, preserve_single_index=False, **kwargs):
     if data and kwargs:
-        raise SyntaxError('teddy can either be initialized using a tuple or using keywords!')
+        raise SyntaxError("teddy can either be initialized using a tuple or using keywords!")
     data = data or kwargs
     return Teddy(iterable=lambda mapper: mapper(data), preserve_single_index=preserve_single_index)
 
 
 _teddy = Teddy(iterable=id_func, preserve_single_index=False)
 
-teddy.zip = lambda data=None, *, preserve_single_index=False, **kwargs: teddy(data, **kwargs, preserve_single_index=preserve_single_index).zip()
+teddy.zip = lambda data=None, *, preserve_single_index=False, **kwargs: teddy(
+    data, **kwargs, preserve_single_index=preserve_single_index
+).zip()

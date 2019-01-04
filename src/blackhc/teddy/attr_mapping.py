@@ -2,6 +2,7 @@
 from collections import abc
 import prettyprinter
 
+
 class AttrMapping(abc.Mapping):
     __slots__ = ("_mapping",)
     _mapping: dict

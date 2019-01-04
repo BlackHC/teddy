@@ -161,25 +161,33 @@ def test_getitem_teddy():
 def test_zip():
     assert teddy.zip(a={0: 1}, b={0: 5, 2: 3}).result == {0: dict(a=1, b=5)}
     assert teddy(x0=dict(a={0: 1}, b={0: 5, 2: 3}), x1=dict(a={0: 6}, b={0: 9, 2: 3}))[:].zip().result == dict(
-        x0={0: dict(a=1,b=5)}, x1 = {0: dict(a=6,b=9)}
+        x0={0: dict(a=1, b=5)}, x1={0: dict(a=6, b=9)}
     )
     # TODO: think about this
-    #assert teddy.zip([{0: 1}, {0: 5, 2: 3}]).result == {0: dict(a=1, b=5)}
+    # assert teddy.zip([{0: 1}, {0: 5, 2: 3}]).result == {0: dict(a=1, b=5)}
 
 
 def test_pipe():
-    assert teddy(list(range(20))).pipe(*(_teddy[logical_or(_value % i != 0, _value == i)] for i in range(2, 6))).result == [1,2,3,5,7,11,13,17,19]
+    assert teddy(list(range(20))).pipe(
+        *(_teddy[logical_or(_value % i != 0, _value == i)] for i in range(2, 6))
+    ).result == [1, 2, 3, 5, 7, 11, 13, 17, 19]
 
 
 def test_groupby():
-    assert teddy([
-        dict(id=123,name="John"), dict(id=123, nickname="Joe"), dict(id=123, surname="Miller"),
-        dict(id=456,name="Jack"), dict(id=456, nickname="Dick"), dict(id=456, surname="Black"),
-    ]).groupby('id')[_key != 'id'].result == {
+    assert teddy(
+        [
+            dict(id=123, name="John"),
+            dict(id=123, nickname="Joe"),
+            dict(id=123, surname="Miller"),
+            dict(id=456, name="Jack"),
+            dict(id=456, nickname="Dick"),
+            dict(id=456, surname="Black"),
+        ]
+    ).groupby("id")[_key != "id"].result == {
         123: [dict(name="John"), dict(nickname="Joe"), dict(surname="Miller")],
         456: [dict(name="Jack"), dict(nickname="Dick"), dict(surname="Black")],
-        }
+    }
 
 
 def test_attr_map():
-    assert teddy(a=1,b=2,c=3).to_attr_map().result == {}
+    assert teddy(a=1, b=2, c=3).to_attr_map().result == {}

@@ -1,6 +1,6 @@
 import dataclasses
 from collections import abc
-from blackhc.teddy.keyed_sequence import KeyedSequence
+from teddy.keyed_sequence import KeyedSequence
 
 
 def dataclass_to_kv(obj):

@@ -6,7 +6,7 @@ import operator
 import itertools
 
 from implicit_lambda import call, contains
-from blackhc.teddy import *
+from teddy import *
 
 with open("./data/swapi.json") as f:
     swapi = json.load(f)

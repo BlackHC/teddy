@@ -3,7 +3,7 @@ from collections import abc
 import dataclasses
 import prettyprinter
 
-from blackhc.teddy.interface import Literal, lit
+from teddy.interface import Literal, lit
 
 __all__ = ["idx", "lit", "KeyedSequence"]
 

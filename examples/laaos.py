@@ -6,7 +6,7 @@ import operator
 import itertools
 
 from implicit_lambda import call, contains
-from blackhc.teddy import *
+from teddy import *
 
 from data import laaos_data
 

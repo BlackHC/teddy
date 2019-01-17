@@ -1,7 +1,7 @@
 import pytest
 import dataclasses
-from blackhc.teddy import transformers
-from blackhc.teddy import keyed_sequence
+from teddy import transformers
+from teddy import keyed_sequence
 
 
 def test_dataclass_to_kv():

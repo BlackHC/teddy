@@ -1,7 +1,7 @@
 from collections import abc
 import typing
-from blackhc.teddy.keyed_sequence import KeyedSequence
-from blackhc.teddy.transformers import to_kv
+from teddy.keyed_sequence import KeyedSequence
+from teddy.transformers import to_kv
 
 
 class Zipper(abc.Mapping):

@@ -3,10 +3,10 @@ import functools
 import prettyprinter
 import typing
 
-from blackhc.teddy import popo
-from blackhc.teddy import zipper
-from blackhc.teddy import attr_mapping
-from blackhc.teddy import interface
+from teddy import popo
+from teddy import zipper
+from teddy import attr_mapping
+from teddy import interface
 
 from implicit_lambda import to_lambda
 

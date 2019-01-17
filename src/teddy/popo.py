@@ -9,10 +9,10 @@ import typing
 import inspect
 from collections import abc
 
-from blackhc.teddy import transformers
-from blackhc.teddy import interface
-from blackhc.teddy import keyed_sequence
-from blackhc.teddy import zipper
+from teddy import transformers
+from teddy import interface
+from teddy import keyed_sequence
+from teddy import zipper
 
 from implicit_lambda import to_lambda, is_lambda_dsl
 from implicit_lambda import args_resolver

@@ -1,7 +1,7 @@
 import dataclasses
 import pytest
 
-from blackhc.teddy import teddy, lit, _key, _value, KeyedSequence, _teddy, all_keys
+from teddy import teddy, lit, _key, _value, KeyedSequence, _teddy, all_keys
 from implicit_lambda import logical_or
 
 

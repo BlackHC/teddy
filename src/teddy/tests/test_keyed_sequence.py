@@ -1,4 +1,4 @@
-from blackhc.teddy.keyed_sequence import KeyedSequence, idx
+from teddy.keyed_sequence import KeyedSequence, idx
 
 
 def test_keyed_sequence():

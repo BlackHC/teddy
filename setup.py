@@ -46,7 +46,7 @@ setup(
     keywords="tools pandas data",
     # You can just specify the packages manually here if your project is
     # simple. Or you can use find_packages().
-    packages=["blackhc.teddy", "blackhc.teddy.tests"],
+    packages=["teddy", "teddy.tests"],
     package_dir={"": "src"},
     # List run-time dependencies here.  These will be installed by pip when
     # your project is installed. For an analysis of "install_requires" vs pip's

@@ -12,7 +12,9 @@ class Zipper(abc.Mapping):
     def __init__(self, generator):
         # TODO: KeyedSequence(to_kv(value)) is a slow operation. We only need uniform key access.
         self._branches = tuple((key, KeyedSequence(to_kv(value))) for key, value in generator)
-        self._branch_keys = set.intersection(*(set(branch_value.keys()) for branch_keys, branch_value in self._branches))
+        self._branch_keys = set.intersection(
+            *(set(branch_value.keys()) for branch_keys, branch_value in self._branches)
+        )
 
     def __getitem__(self, key):
         if key not in self._branch_keys:
@@ -53,7 +55,9 @@ class RelaxedZipper(abc.Mapping):
         if key not in self._branch_keys:
             # raise KeyError(f"{key} not in shared keys {self._branch_keys}!")
             return None
-        return KeyedSequence((branch_key, branch_value[key]) for branch_key, branch_value in self._branches if key in branch_value)
+        return KeyedSequence(
+            (branch_key, branch_value[key]) for branch_key, branch_value in self._branches if key in branch_value
+        )
 
     def __len__(self):
         return len(self._branch_keys)

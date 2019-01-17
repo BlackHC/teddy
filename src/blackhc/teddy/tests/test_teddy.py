@@ -183,11 +183,11 @@ def test_groupby():
             dict(id=456, nickname="Dick"),
             dict(id=456, surname="Black"),
         ]
-    ).groupby("id")[_key != "id"].result == {
+    ).groupby("id")[:][:][_key != 'id'].result == {
         123: [dict(name="John"), dict(nickname="Joe"), dict(surname="Miller")],
         456: [dict(name="Jack"), dict(nickname="Dick"), dict(surname="Black")],
     }
 
 
 def test_attr_map():
-    assert teddy(a=1, b=2, c=3).to_attr_map().result == {}
+    assert teddy(a=1, b=2, c=3).to_attr_map().result == dict(a=1, b=2, c=3)

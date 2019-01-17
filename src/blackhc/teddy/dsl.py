@@ -6,6 +6,7 @@ import typing
 from blackhc.teddy import popo
 from blackhc.teddy import zipper
 from blackhc.teddy import attr_mapping
+from blackhc.teddy import interface
 
 from implicit_lambda import to_lambda
 
@@ -55,8 +56,8 @@ class Teddy:
     def map_keys(self, f):
         return self._chain(popo.map_keys(f))
 
-    def zip(self):
-        return self._chain(popo.zip)
+    def zip(self, keys=interface.all_keys, *, relaxed=False):
+        return self._chain(popo.zip_keys(keys, preserve_single_index=self.preserve_single_index, relaxed=relaxed))
 
     def groupby(self, keys, drop_none_keys=False, preserve_single_index=None):
         preserve_single_index = preserve_single_index or self.preserve_single_index

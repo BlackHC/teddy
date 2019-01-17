@@ -1,44 +1,71 @@
 from collections import abc
 import typing
 from blackhc.teddy.keyed_sequence import KeyedSequence
-from blackhc.teddy.transformers import to_kv, can_kv
+from blackhc.teddy.transformers import to_kv
 
 
 class Zipper(abc.Mapping):
-    __slots__ = ("_inners", "_inner_keys", "_inner_zipper_keys")
-    _inners: typing.List[KeyedSequence]
-    _inner_keys: set
-    _inner_zipper_keys: set
+    __slots__ = ("_branches", "_branch_keys")
+    _branches: typing.List[KeyedSequence]
+    _branch_keys: set
 
     def __init__(self, generator):
-        self._inners = tuple((key, KeyedSequence(to_kv(value))) for key, value in generator)
-        self._inner_keys = set.intersection(*(set(inner_value.keys()) for inner_keys, inner_value in self._inners))
-        self._inner_zipper_keys = {
-            key for key in self._inner_keys if all(can_kv(inner_value[key]) for inner_key, inner_value in self._inners)
-        }
+        # TODO: KeyedSequence(to_kv(value)) is a slow operation. We only need uniform key access.
+        self._branches = tuple((key, KeyedSequence(to_kv(value))) for key, value in generator)
+        self._branch_keys = set.intersection(*(set(branch_value.keys()) for branch_keys, branch_value in self._branches))
 
     def __getitem__(self, key):
-        if key not in self._inner_keys:
-            raise KeyError(f"{key} not in shared keys {self._inner_keys}!")
+        if key not in self._branch_keys:
+            # raise KeyError(f"{key} not in shared keys {self._branch_keys}!")
+            return None
 
-        if key in self._inner_zipper_keys:
-            return Zipper((inner_key, inner_value[key]) for inner_key, inner_value in self._inners)
-
-        return KeyedSequence((inner_key, inner_value[key]) for inner_key, inner_value in self._inners)
+        return KeyedSequence((branch_key, branch_value[key]) for branch_key, branch_value in self._branches)
 
     def __len__(self):
-        return len(self._inner_keys)
+        return len(self._branch_keys)
 
     def keys(self):
-        return self._inner_keys
+        return self._branch_keys
 
     def __iter__(self):
-        if self._inner_keys:
-            return iter(key for key in self._inners[0][1].keys() if key in self._inner_keys)
-        return iter(())
+        # _branch_keys is a set and thus not ordered anymore.
+        # TODO: do we actually want an ordered set?
+        return iter(key for key in self._branches[0][1].keys() if key in self._branch_keys)
 
     def __hash__(self):
-        return hash(self._inners)
+        return hash(self._branches)
 
     def __repr__(self):
-        return repr(self._inners)
+        return f"Zipper{repr(self._branches)}"
+
+
+class RelaxedZipper(abc.Mapping):
+    __slots__ = ("_branches", "_branch_keys")
+    _branches: typing.List[KeyedSequence]
+    _branch_keys: set
+
+    def __init__(self, generator):
+        # TODO: KeyedSequence(to_kv(value)) is a slow operation. We only need uniform key access.
+        self._branches = tuple((key, KeyedSequence(to_kv(value))) for key, value in generator)
+        self._branch_keys = set.union(*(set(branch_value.keys()) for branch_keys, branch_value in self._branches))
+
+    def __getitem__(self, key):
+        if key not in self._branch_keys:
+            # raise KeyError(f"{key} not in shared keys {self._branch_keys}!")
+            return None
+        return KeyedSequence((branch_key, branch_value[key]) for branch_key, branch_value in self._branches if key in branch_value)
+
+    def __len__(self):
+        return len(self._branch_keys)
+
+    def keys(self):
+        return self._branch_keys
+
+    def __iter__(self):
+        return iter(self._branch_keys)
+
+    def __hash__(self):
+        return hash(self._branches)
+
+    def __repr__(self):
+        return f"RelaxedZipper{repr(self._branches)}"

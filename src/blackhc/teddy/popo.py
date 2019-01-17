@@ -369,7 +369,7 @@ def map_keys(f):
 
 
 def groupby(keys, drop_none_keys=True, preserve_single_index=False):
-    keygetter = getitem(keys, preserve_single_index=preserve_single_index)(lambda x: x)
+    key_getter = getitem(keys, preserve_single_index=preserve_single_index)(lambda x: x)
 
     def outer(mapper):
         # value_mapper = mapper_all(mapper)
@@ -378,7 +378,7 @@ def groupby(keys, drop_none_keys=True, preserve_single_index=False):
         def inner(item):
             results = {}
             for new_key, key_value in FiniteGenerator.wrap(item).map(
-                lambda key, value: (keygetter(value), (key, value))
+                lambda key, value: (key_getter(value), (key, value))
             ):
                 if drop_none_keys and new_key is None:
                     continue
@@ -387,7 +387,7 @@ def groupby(keys, drop_none_keys=True, preserve_single_index=False):
                     group = results[new_key] = []
                 group.append(key_value)
             results = {key: keyed_sequence.KeyedSequence(group) for key, group in results.items()}
-            return mapper(keyed_sequence.KeyedSequence(dict(results))) or None
+            return mapper(keyed_sequence.KeyedSequence(results)) or None
 
         return inner
 
@@ -409,10 +409,17 @@ def pipe(pipe_mappers):
     return outer
 
 
-def zip(mapper):
-    mapper_inside = mapper_all(mapper)
+def zip_keys(keys, preserve_single_index: bool, relaxed: bool):
+    key_getter = getitem(keys, preserve_single_index=preserve_single_index)
 
-    def inner(item):
-        return mapper_inside(zipper.Zipper(FiniteGenerator.wrap(item)))
+    factory = zipper.RelaxedZipper if relaxed else zipper.Zipper
 
-    return inner
+    def outer(mapper):
+        get_item_and_map = key_getter(mapper)
+
+        def inner(item):
+            return get_item_and_map(factory(FiniteGenerator.wrap(item)))
+
+        return inner
+
+    return outer

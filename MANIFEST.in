@@ -1,0 +1,5 @@
+recursive-include data *.json
+recursive-include data *.py
+recursive-include ddocs *.md
+recursive-include examples *.py
+recursive-include spikes *.py

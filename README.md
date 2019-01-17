@@ -1,8 +1,10 @@
 # Teddy
 
-Teddy is not Pandas. Teddy is lightweight and snuggly.
+~~Teddy is not Pandas. Teddy is lightweight and snuggly.~~
 
-Teddy is straightforward and understands you. Teddy loves you.
+~~Teddy is straightforward and understands you. Teddy loves you.~~
+
+More importantly, Teddy is not ready for prime time.
 
 ## Feature overview
 

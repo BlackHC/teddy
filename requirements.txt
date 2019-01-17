@@ -1,0 +1,4 @@
+python>=3.7
+pytest~=4.0
+prettyprinter~=0.14
+implicit_lambda~=0.4

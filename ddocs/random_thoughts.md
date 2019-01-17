@@ -469,3 +469,85 @@ There is no way to flatten a map at the moment.
 
 Also, I like the idea of differentiating between KeyedSequence and AttrMapping as main result types.
 There is no easy way to decide to create an AttrMapping atm.
+
+## 1/5
+
+### Teddy Zipper examination
+
+We want to use a structural zip iterator. Indexing and `[:]` should apply in parallel on the structures being zipped.
+
+What about `map_values` etc? What if we reach the end?
+
+`.zip().map_values(...)` would work on zipped items so continue the zipping, which is not what we'd want.
+
+Idea: make zip take keys and make it a single step operation.
+
+## 1/5
+
+### Using _teddy instead of _, _key, _value?
+
+_teddy can offer a Teddy-wrapped lambda. However, it currently does not support operators...
+`teddy_data[_teddy.name == "somename"]`
+
+`(_teddy.key == "somename")` could itself be a KeyedSequence of booleans.
+In the indexed case above, it would be applied to `teddy_data[:]` itself.
+
+`(_teddy.a == _teddy.b)` would naturally imply a join btw because equality is structural?
+
+### `groupby` revisited
+
+`data.groupby(_teddy...)` can just execute the `_teddy` expr on `data[:]`. That will yield a KS
+from key to expr result, which can be used a new key for the groupby.
+
+#### What about structural _teddy subexpr?
+
+We can just implement `_teddy` subexpr support for `[]`? But what does it mean?
+
+`teddy_data[:][_teddy.name, _teddy.surname]` should select two columns.
+`teddy_data[:][_teddy.author.name, _teddy.author.college]` should select two sub-columns into a flat namedtuple.
+
+`teddy_data[:][_teddy.author[_teddy.name, _teddy.college]]` could rebuild an author struct.
+
+`teddy_data[:].select(author_name=_teddy.author.name, author_college=_teddy.author.college)` or
+`teddy_data[:][dict(author_name=_teddy.author.name, author_college=_teddy.author.college)]`.
+
+`teddy_data[:][_teddy.name, _teddy.surname]` is equivalent to: `teddy_data[:]['name', 'surname']`.
+However, the format does not support more deeply structured queries. A string is just a `__getitem__` on an `_teddy`.
+
+What about predicates then?
+`teddy_data[predicate]` is different to `teddy_data[:][...]`, so let's look at it in the same context: `teddy_data[:][lambda key: key in ('name', 'surname')]`
+So predicates return a boolean decision for each key (or (key, value), or value).
+
+A way to look at this, that is not compatible with predicates, is that, for `teddy_data[:][_teddy.name, _teddy.surname]`, `_teddy.name` is evaluated as `teddy_data[:].name` and then indexed with the respective key and inserted as 'name' into the result.
+
+This means, we could add an external column by simply using the same keys in it and writing
+`teddy_data[:][_teddy.name, external_data]`.
+
+Another way to write this could be `teddy(name=teddy[:].name, external=external_data).zip()`.
+
+This breaks down when we get to `teddy_data[:][:][_teddy.name, external_data]`.
+
+## 1/14
+
+(I have lost my train of thoughts a bit after a week-long break on working on this.)
+
+### Thoughts
+
+Indexding allows to parallelize operations. Item access is sequential.
+
+`data[exprA,exprB,exprC]` executes exprA, exprB, exprC on data and collects the results and then proceeds.
+`[:]` collects everything and then proceeds.
+
+Item access is equivalent to single indexing. `data.item === data[_teddy.item] === data['item']`
+
+Example of using it with LAAOS experiment results:
+
+```python
+results[{'metrics': _teddy.iterations[:].metrics.nll_loss, 'choices': _teddy.iterations[:].choosen_samples]
+```
+
+Example of using it with SWAPI:
+
+```python
+swapi.people.filter()
+```
